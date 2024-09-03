@@ -1,3 +1,4 @@
+// App.js
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { Alert } from 'react-native';
@@ -10,15 +11,17 @@ import MemoriesScreen from './src/screens/MemoriesScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import HelpScreen from './src/screens/HelpScreen';
 import MyProfileScreen from './src/screens/MyProfileScreen';
+import MyFriendCirclesScreen from './src/screens/MyFriendCirclesScreen';
 import MyFlixScreen from './src/screens/MyFlixScreen';
-import MyFlixExistingScreen from './src/screens/MyFlixExistingScreen'; // Import the new screen
+import MyFlixExistingScreen from './src/screens/MyFlixExistingScreen';
 import { auth, firestore } from './firebase/firebaseConfigs';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { setDoc, doc, collection, query, where, getDocs } from 'firebase/firestore';
+import { ThemeProvider } from './src/contexts/ThemeContext'; // Import ThemeProvider
 
 const App = () => {
   const [currentScreen, setCurrentScreen] = useState('Main');
-  const [screenParams, setScreenParams] = useState(null); // To hold screen params
+  const [screenParams, setScreenParams] = useState(null);
   const [loginIdentifier, setLoginIdentifier] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [registerFullName, setRegisterFullName] = useState('');
@@ -37,7 +40,6 @@ const App = () => {
 
   const handleLogin = async () => {
     try {
-      // Check if the identifier is an email or username
       let email = loginIdentifier;
       if (!loginIdentifier.includes('@')) {
         const q = query(
@@ -66,14 +68,19 @@ const App = () => {
         fullName: registerFullName,
         username: registerUsername,
         email: user.email,
-        friends: [], // Initialize empty list of friends
-        profilePicUri: "" // Initialize empty profile picture URI
+        friends: [],
+        profilePicUri: ""
       });
       Alert.alert('Registration successful', `Welcome, ${user.email}`);
-      setCurrentScreen('Home'); // Navigate to HomeScreen after successful registration
+      setCurrentScreen('Home');
     } catch (error) {
       Alert.alert('Registration failed', error.message);
     }
+  };
+
+  const navigateTo = (screen, params = null) => {
+    setCurrentScreen(screen);
+    setScreenParams(params);
   };
 
   const renderScreen = () => {
@@ -107,27 +114,33 @@ const App = () => {
           />
         );
       case 'Home':
-        return <HomeScreen navigateTo={(screen, params) => { setCurrentScreen(screen); setScreenParams(params); }} />;
+        return <HomeScreen navigateTo={navigateTo} />;
       case 'MyFriends':
-        return <MyFriendsScreen navigateTo={setCurrentScreen} />;
+        return <MyFriendsScreen navigateTo={navigateTo} />;
       case 'Memories':
-        return <MemoriesScreen navigateTo={setCurrentScreen} />;
+        return <MemoriesScreen navigateTo={navigateTo} />;
+      case 'FriendCircles':
+        return <MyFriendCirclesScreen navigateTo={navigateTo} />;
       case 'Settings':
-        return <SettingsScreen navigateTo={setCurrentScreen} />;
+        return <SettingsScreen navigateTo={navigateTo} />;
       case 'Help':
-        return <HelpScreen navigateTo={setCurrentScreen} />;
+        return <HelpScreen navigateTo={navigateTo} />;
       case 'MyProfile':
-        return <MyProfileScreen navigateTo={setCurrentScreen} />;
+        return <MyProfileScreen navigateTo={navigateTo} />;
       case 'MyFlix':
-        return <MyFlixScreen navigateTo={setCurrentScreen} />;
-      case 'MyFlixExisting': // Add new case for MyFlixExisting screen
-        return <MyFlixExistingScreen navigateTo={setCurrentScreen} route={{ params: screenParams }} />;
+        return <MyFlixScreen navigateTo={navigateTo} />;
+      case 'MyFlixExisting':
+        return <MyFlixExistingScreen navigateTo={navigateTo} route={{ params: screenParams }} />;
       default:
         return <MainScreen />;
     }
   };
 
-  return renderScreen();
+  return (
+    <ThemeProvider>
+      {renderScreen()}
+    </ThemeProvider>
+  );
 };
 
 export default App;

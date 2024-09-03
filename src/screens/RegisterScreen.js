@@ -1,76 +1,96 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { SafeAreaView, View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { auth, firestore } from '../../firebase/firebaseConfigs';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 
-const RegisterScreen = ({
-  registerUsername,
-  setRegisterUsername,
-  registerEmail,
-  setRegisterEmail,
-  registerPassword,
-  setRegisterPassword,
-  registerFullName,
-  setRegisterFullName,
-  handleRegister,
-  setCurrentScreen,
-}) => (
-  <SafeAreaView style={styles.container}>
-    <View style={styles.inner}>
-      <Text style={styles.text}>F  L  I  X</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Full Name"
-        placeholderTextColor="#D2B48C"
-        value={registerFullName}
-        onChangeText={text => setRegisterFullName(text)}
-        autoCapitalize="words"
-        textContentType="name"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Username"
-        placeholderTextColor="#D2B48C"
-        value={registerUsername}
-        onChangeText={text => setRegisterUsername(text)}
-        autoCapitalize="none"
-        textContentType="username"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        placeholderTextColor="#D2B48C"
-        value={registerEmail}
-        onChangeText={text => setRegisterEmail(text)}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        textContentType="emailAddress"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        placeholderTextColor="#D2B48C"
-        secureTextEntry
-        value={registerPassword}
-        onChangeText={text => setRegisterPassword(text)}
-        autoCapitalize="none"
-        textContentType="newPassword"
-      />
-      <TouchableOpacity style={styles.button} onPress={handleRegister}>
-        <Text style={styles.buttonText}>Register</Text>
-      </TouchableOpacity>
-      <TouchableOpacity onPress={() => {
-        setRegisterFullName('');
-        setRegisterUsername('');
-        setRegisterEmail('');
-        setRegisterPassword('');
-        setCurrentScreen('Login');
-      }}>
-        <Text style={styles.signUpText}>
-          Already have an account? <Text style={styles.signUpLink}>Log in</Text>
-        </Text>
-      </TouchableOpacity>
-    </View>
-  </SafeAreaView>
-);
+const RegisterScreen = ({ setCurrentScreen }) => {
+  const [registerFullName, setRegisterFullName] = useState('');
+  const [registerUsername, setRegisterUsername] = useState('');
+  const [registerEmail, setRegisterEmail] = useState('');
+  const [registerPassword, setRegisterPassword] = useState('');
+  const [profileImageUri, setProfileImageUri] = useState(''); // Initialize as an empty string
+
+  const handleRegister = async () => {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, registerEmail, registerPassword);
+      const user = userCredential.user;
+
+      // Save user data to Firestore
+      await setDoc(doc(firestore, 'users', user.uid), {
+        fullName: registerFullName,
+        username: registerUsername,
+        email: registerEmail,
+        profileImageUri: '', // Set initial profile image URI as empty string
+      });
+
+      alert('Registration successful');
+      setCurrentScreen('Login');
+    } catch (error) {
+      alert('Failed to register: ' + error.message);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.inner}>
+        <Text style={styles.text}>F  L  I  X</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Full Name"
+          placeholderTextColor="#D2B48C"
+          value={registerFullName}
+          onChangeText={text => setRegisterFullName(text)}
+          autoCapitalize="words"
+          textContentType="name"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Username"
+          placeholderTextColor="#D2B48C"
+          value={registerUsername}
+          onChangeText={text => setRegisterUsername(text)}
+          autoCapitalize="none"
+          textContentType="username"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          placeholderTextColor="#D2B48C"
+          value={registerEmail}
+          onChangeText={text => setRegisterEmail(text)}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          textContentType="emailAddress"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Password"
+          placeholderTextColor="#D2B48C"
+          secureTextEntry
+          value={registerPassword}
+          onChangeText={text => setRegisterPassword(text)}
+          autoCapitalize="none"
+          textContentType="newPassword"
+        />
+        <TouchableOpacity style={styles.button} onPress={handleRegister}>
+          <Text style={styles.buttonText}>Register</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => {
+          setRegisterFullName('');
+          setRegisterUsername('');
+          setRegisterEmail('');
+          setRegisterPassword('');
+          setCurrentScreen('Login');
+        }}>
+          <Text style={styles.signUpText}>
+            Already have an account? <Text style={styles.signUpLink}>Log in</Text>
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -120,5 +140,5 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
 });
-
-export default RegisterScreen;
+  
+  export default RegisterScreen;
