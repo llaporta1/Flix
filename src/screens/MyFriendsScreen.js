@@ -65,7 +65,7 @@ const MyFriendsScreen = ({ navigateTo }) => {
         style={styles.placeholderImage}
       />
       <View style={styles.friendItemText}>
-        <Text>{item.fullName}</Text>
+        <Text style={styles.friendText}>{item.fullName}</Text>
         <Text style={styles.usernameText}>{item.username}</Text>
       </View>
     </View>
@@ -418,6 +418,7 @@ const MyFriendsScreen = ({ navigateTo }) => {
               <TextInput
                 style={styles.searchInput}
                 placeholder="Find friends"
+                placeholderTextColor="#aaa" // Set placeholder text color to a light gray
                 value={searchQuery}
                 onChangeText={(text) => setSearchQuery(text)}
                 onSubmitEditing={handleSearch}
@@ -435,7 +436,7 @@ const MyFriendsScreen = ({ navigateTo }) => {
                       style={styles.placeholderImage}
                     />
                     <View style={styles.friendItemText}>
-                      <Text>{item.fullName}</Text>
+                      <Text style={styles.friendText}>{item.fullName}</Text>
                       <Text style={styles.usernameText}>{item.username}</Text>
                       {item.mutualFriends.length > 0 && (
                         <TouchableOpacity onPress={() => setMutualFriends(item.mutualFriends)}>
@@ -445,10 +446,10 @@ const MyFriendsScreen = ({ navigateTo }) => {
                     </View>
                     <View>
                       {item.isFriend ? (
-                        <Text>Friends</Text>
+                        <Text style={styles.friendText}>Friends</Text>
                       ) : (
                         <TouchableOpacity onPress={() => sendFriendRequest(item.id)}>
-                          <Text>
+                          <Text style={styles.friendText}>
                             {friendRequests.some(request => request.receiverId === item.id && request.status === 'pending') ? 'Request Sent' : 'Send Friend Request'}
                           </Text>
                         </TouchableOpacity>
@@ -481,12 +482,12 @@ const MyFriendsScreen = ({ navigateTo }) => {
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
                   <View style={styles.friendRequestItem}>
-                    <Text>{item.senderUsername}</Text>
+                    <Text style={styles.friendText}>{item.senderUsername}</Text>
                     <TouchableOpacity onPress={() => acceptFriendRequest(item.id)}>
-                      <Text>Accept</Text>
+                      <Text style={styles.friendText}>Accept</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => declineFriendRequest(item.id)}>
-                      <Text>Decline</Text>
+                      <Text style={styles.friendText}>Decline</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -517,7 +518,7 @@ const MyFriendsScreen = ({ navigateTo }) => {
               <View key={index} style={styles.friendItem}>
                 <Image source={require('../../assets/profile-placeholder.png')} style={styles.placeholderImage} />
                 <View style={styles.friendItemText}>
-                  <Text>{friend.fullName}</Text>
+                  <Text style={styles.friendText}>{friend.fullName}</Text>
                   <Text style={styles.usernameText}>{friend.username}</Text>
                 </View>
               </View>
@@ -535,7 +536,7 @@ const MyFriendsScreen = ({ navigateTo }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#000', // Set background color to black
   },
   contentContainer: {
     flex: 1,
@@ -546,6 +547,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     marginVertical: 16,
+    color: '#fff', // Set text color to white
   },
   tabsContainer: {
     flexDirection: 'row',
@@ -555,9 +557,10 @@ const styles = StyleSheet.create({
   activeTab: {
     fontWeight: 'bold',
     textDecorationLine: 'underline',
+    color: '#fff', // Set text color to white
   },
   inactiveTab: {
-    color: 'gray',
+    color: '#aaa', // Set inactive tab text color to gray
   },
   searchContainer: {
     flexDirection: 'row',
@@ -565,16 +568,17 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    borderColor: 'gray',
+    borderColor: '#fff', // Set border color to white
     borderWidth: 1,
     borderRadius: 5,
     padding: 5,
+    color: '#fff', // Set input text color to white
   },
   noResultsText: {
     textAlign: 'center',
     marginTop: 20,
     fontSize: 18,
-    color: 'gray',
+    color: '#aaa', // Set no results text color to gray
     textDecorationLine: 'underline',
   },
   friendItem: {
@@ -582,16 +586,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between', // Align text and button to the right
     padding: 10,
-    borderBottomColor: 'gray',
+    borderBottomColor: '#555', // Set border color to dark gray
     borderBottomWidth: 1,
   },
   friendItemText: {
     flex: 1, // Take up remaining space
     marginLeft: 10,
   },
+  friendText: {
+    color: '#fff', // Set text color to white
+  },
   usernameText: {
     fontSize: 12,
-    color: 'gray',
+    color: '#aaa', // Set username text color to gray
   },
   placeholderImage: {
     width: 40,
@@ -601,13 +608,13 @@ const styles = StyleSheet.create({
   },
   mutualFriendsText: {
     textDecorationLine: 'underline',
-    color: 'blue',
+    color: '#00f', // Set mutual friends text color to blue
   },
   friendRequestItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     padding: 10,
-    borderBottomColor: 'gray',
+    borderBottomColor: '#555', // Set border color to dark gray
     borderBottomWidth: 1,
   },
   inner: {
@@ -618,20 +625,22 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginTop: 20,
     marginBottom: 10,
+    color: '#fff', // Set contacts header text color to white
   },
   contactItem: {
     marginBottom: 20,
     padding: 10,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#333', // Set contact item background color to dark gray
     borderRadius: 5,
   },
   contactName: {
     fontSize: 18,
     fontWeight: 'bold',
+    color: '#fff', // Set contact name text color to white
   },
   contactEmail: {
     fontSize: 14, // Smaller text for the email
-    color: '#555',
+    color: '#aaa', // Set email text color to gray
   },
   addButton: {
     marginTop: 10,
@@ -641,7 +650,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   addButtonText: {
-    color: '#fff',
+    color: '#fff', // Set button text color to white
     fontSize: 16,
   },
   mutualFriendsContainer: {
@@ -649,18 +658,19 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#fff',
+    backgroundColor: '#000', // Set background color to black
     padding: 20,
-    borderTopColor: 'gray',
+    borderTopColor: '#555', // Set border color to dark gray
     borderTopWidth: 1,
   },
   mutualFriendsHeader: {
     fontWeight: 'bold',
     marginBottom: 10,
+    color: '#fff', // Set header text color to white
   },
   closeMutualFriends: {
     textDecorationLine: 'underline',
-    color: 'blue',
+    color: '#00f', // Set close text color to blue
     marginTop: 10,
   },
 });

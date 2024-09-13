@@ -173,12 +173,14 @@ const MyFriendCirclesScreen = ({ navigateTo }) => {
               <Text style={styles.modalTitle}>Create New Circle</Text>
               <TextInput
                 placeholder="Circle Name"
+                placeholderTextColor="#aaa" // Set placeholder text color to gray
                 value={circleName}
                 onChangeText={setCircleName}
                 style={styles.input}
               />
               <TextInput
                 placeholder="Schedule Time (HH:MM)"
+                placeholderTextColor="#aaa" // Set placeholder text color to gray
                 value={dumpTime}
                 onChangeText={setDumpTime}
                 style={styles.input}
@@ -206,6 +208,7 @@ const MyFriendCirclesScreen = ({ navigateTo }) => {
               <Text style={styles.modalTitle}>Join a Circle</Text>
               <TextInput
                 placeholder="Enter Circle Code"
+                placeholderTextColor="#aaa" // Set placeholder text color to gray
                 value={circleCode}
                 onChangeText={setCircleCode}
                 style={styles.input}
@@ -234,6 +237,7 @@ const MyFriendCirclesScreen = ({ navigateTo }) => {
                 <Text style={styles.modalTitle}>Schedule Dump Time</Text>
                 <TextInput
                   placeholder="Set Time (HH:MM)"
+                  placeholderTextColor="#aaa" // Set placeholder text color to gray
                   value={dumpTime}
                   onChangeText={setDumpTime}
                   style={styles.input}
@@ -265,7 +269,7 @@ const MyFriendCirclesScreen = ({ navigateTo }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#000', // Set background color to black
   },
   contentContainer: {
     flex: 1,
@@ -276,6 +280,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 20,
+    color: '#fff', // Set text color to white
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -304,7 +309,7 @@ const styles = StyleSheet.create({
     paddingBottom: 80,
   },
   circleItem: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#333', // Set item background color to dark gray
     padding: 15,
     borderRadius: 10,
     marginBottom: 15,
@@ -312,13 +317,14 @@ const styles = StyleSheet.create({
   circleName: {
     fontSize: 18,
     fontWeight: 'bold',
+    color: '#fff', // Set text color to white
   },
   circleCode: {
-    color: '#6c757d',
+    color: '#bbb', // Lighter gray for additional info
     marginBottom: 5,
   },
   dumpTime: {
-    color: '#17a2b8',
+    color: '#17a2b8', // Bright color for scheduled time
     marginBottom: 10,
   },
   scheduleButton: {
@@ -328,7 +334,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   scheduleButtonText: {
-    color: '#fff',
+    color: '#000', // Set button text color to black for contrast
     fontSize: 14,
   },
   modalContainer: {
@@ -338,7 +344,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: '#333', // Dark background for modal
     padding: 20,
     borderRadius: 10,
     width: '80%',
@@ -348,13 +354,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 15,
     textAlign: 'center',
+    color: '#fff', // Set text color to white
   },
   input: {
-    borderColor: '#ddd',
+    borderColor: '#555', // Darker border color for inputs
     borderWidth: 1,
     padding: 10,
     borderRadius: 5,
     marginBottom: 15,
+    color: '#fff', // Set input text color to white
   },
   modalButton: {
     backgroundColor: '#007bff',
