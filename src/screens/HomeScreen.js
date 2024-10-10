@@ -24,6 +24,7 @@ import {
   increment,
 } from 'firebase/firestore';
 import Menu from '../components/Menu';
+import addIcon from '../../assets/add.png'; // Import the add.png icon
 
 const HomeScreen = ({ navigateTo }) => {
   const [posts, setPosts] = useState([]);
@@ -31,8 +32,8 @@ const HomeScreen = ({ navigateTo }) => {
   const [error, setError] = useState(null);
   const [userHasValidPost, setUserHasValidPost] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [profileImages, setProfileImages] = useState({}); // State to hold profile images
-  const [currentImageIndex, setCurrentImageIndex] = useState({}); // State to hold current image index for each post
+  const [profileImages, setProfileImages] = useState({});
+  const [currentImageIndex, setCurrentImageIndex] = useState({});
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -100,7 +101,6 @@ const HomeScreen = ({ navigateTo }) => {
 
           setPosts(postsData);
 
-          // Fetch profile images for each user
           const userIds = new Set(postsData.map((post) => post.userId));
           const profileImagePromises = Array.from(userIds).map(fetchUserProfileImage);
           await Promise.all(profileImagePromises);
@@ -137,7 +137,6 @@ const HomeScreen = ({ navigateTo }) => {
 
   const handleReaction = async (postId, reaction) => {
     try {
-      // Update local state
       setReactions((prevReactions) => {
         const postReactions = prevReactions[postId] || {};
         const currentCount = postReactions[reaction] || 0;
@@ -150,7 +149,6 @@ const HomeScreen = ({ navigateTo }) => {
         };
       });
 
-      // Update Firestore
       const postDocRef = doc(firestore, 'posts', postId);
       await updateDoc(postDocRef, {
         [`reactions.${reaction}`]: increment(1),
@@ -211,7 +209,7 @@ const HomeScreen = ({ navigateTo }) => {
   };
 
   const renderImages = (images, postId) => {
-    const currentIndex = currentImageIndex[postId] || 0; // Default to the first image
+    const currentIndex = currentImageIndex[postId] || 0;
 
     if (!images || images.length === 0) return null;
 
@@ -268,9 +266,7 @@ const HomeScreen = ({ navigateTo }) => {
         <Text style={styles.username}>{item.username || 'Unknown User'}</Text>
       </View>
       {renderImages(item.imageUris || [item.imageUri], item.id)}
-      {item.caption ? (
-        <Text style={styles.caption}>{item.caption}</Text>
-      ) : null}
+      {item.caption ? <Text style={styles.caption}>{item.caption}</Text> : null}
       {renderReactions(item.id, item.reactions || {})}
     </View>
   );
@@ -322,8 +318,8 @@ const HomeScreen = ({ navigateTo }) => {
           onPress={handleMyFlixPress}
         >
           <Image
-            source={require('../../assets/my-flix.png')}
-            style={styles.myFlixIcon}
+            source={addIcon} // Updated to use the add.png icon
+            style={styles.myFlixIcon} // Apply full size
           />
         </TouchableOpacity>
       </View>
@@ -336,13 +332,13 @@ const { width } = Dimensions.get('window');
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000', // Changed to black background
+    backgroundColor: '#000',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#000', // Black background for loading screen
+    backgroundColor: '#000',
   },
   contentContainer: {
     flex: 1,
@@ -354,10 +350,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 10,
     alignSelf: 'center',
-    color: '#fff', // Set text color to white
+    color: '#fff',
   },
   errorText: {
-    color: '#ff4d4d', // Light red for errors
+    color: '#ff4d4d',
     textAlign: 'center',
     marginVertical: 10,
   },
@@ -368,25 +364,25 @@ const styles = StyleSheet.create({
   },
   noPostText: {
     fontSize: 18,
-    color: '#fff', // Set text color to white
+    color: '#fff',
     textAlign: 'center',
     marginBottom: 20,
   },
   shareButton: {
-    backgroundColor: '#fff', // White button with black text
+    backgroundColor: '#fff',
     paddingVertical: 12,
     paddingHorizontal: 30,
     borderRadius: 25,
   },
   shareButtonText: {
-    color: '#000', // Black text
+    color: '#000',
     fontSize: 16,
   },
   postsList: {
     paddingBottom: 80,
   },
   postContainer: {
-    backgroundColor: '#333', // Dark background for posts
+    backgroundColor: '#333',
     borderRadius: 10,
     padding: 15,
     marginBottom: 20,
@@ -402,12 +398,12 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     marginRight: 10,
-    backgroundColor: '#ccc', // Keep profile image background as is
+    backgroundColor: '#ccc',
   },
   username: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff', // Set text color to white
+    color: '#fff',
   },
   imageContainer: {
     position: 'relative',
@@ -425,7 +421,7 @@ const styles = StyleSheet.create({
     top: '50%',
     transform: [{ translateY: -15 }],
     zIndex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.5)', // White arrows with transparency
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
     borderRadius: 20,
     padding: 10,
   },
@@ -435,17 +431,17 @@ const styles = StyleSheet.create({
     top: '50%',
     transform: [{ translateY: -15 }],
     zIndex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.5)', // White arrows with transparency
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
     borderRadius: 20,
     padding: 10,
   },
   arrowText: {
-    color: '#000', // Black text for arrows
+    color: '#000',
     fontSize: 24,
   },
   caption: {
     fontSize: 14,
-    color: '#fff', // Set caption text to white
+    color: '#fff',
     marginBottom: 10,
   },
   reactionContainer: {
@@ -453,7 +449,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   reactionButton: {
-    backgroundColor: '#444', // Darker background for reactions
+    backgroundColor: '#444',
     borderRadius: 15,
     paddingVertical: 5,
     paddingHorizontal: 10,
@@ -461,21 +457,21 @@ const styles = StyleSheet.create({
   },
   reactionText: {
     fontSize: 14,
-    color: '#fff', // White text for reactions
+    color: '#fff',
   },
   addReactionButton: {
-    backgroundColor: '#555', // Darker background for add reaction
+    backgroundColor: '#555',
     borderRadius: 15,
     paddingVertical: 5,
     paddingHorizontal: 10,
   },
   addReactionText: {
     fontSize: 14,
-    color: '#fff', // White text for add reaction
+    color: '#fff',
   },
   noPostsText: {
     fontSize: 16,
-    color: '#fff', // Set no posts text to white
+    color: '#fff',
     textAlign: 'center',
     marginTop: 50,
   },
@@ -483,15 +479,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 30,
     right: 20,
-    backgroundColor: '#fff', // White button
+    backgroundColor: '#fff',
     borderRadius: 30,
     padding: 15,
     elevation: 5,
   },
   myFlixIcon: {
-    width: 30,
-    height: 30,
-    tintColor: '#000', // Black icon
+    width: 50,  // Adjusted to fit the entire circle button
+    height: 50, // Adjusted to fit the entire circle button
   },
 });
 

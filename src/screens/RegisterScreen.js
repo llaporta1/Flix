@@ -15,15 +15,16 @@ const RegisterScreen = ({ setCurrentScreen }) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, registerEmail, registerPassword);
       const user = userCredential.user;
-
+  
       // Save user data to Firestore
       await setDoc(doc(firestore, 'users', user.uid), {
         fullName: registerFullName,
         username: registerUsername,
         email: registerEmail,
         profileImageUri: '', // Set initial profile image URI as empty string
+        signUpTimeStamp: Timestamp.now(), // Store the current timestamp as the sign-up date
       });
-
+  
       alert('Registration successful');
       setCurrentScreen('Login');
     } catch (error) {

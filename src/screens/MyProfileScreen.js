@@ -13,6 +13,7 @@ const MyProfileScreen = ({ navigateTo }) => {
     const [password, setPassword] = useState('');
     const [selectedImageUri, setSelectedImageUri] = useState(null);
     const [error, setError] = useState(null);
+    const [isEditing, setIsEditing] = useState(false); // To toggle between edit and save modes
 
     useEffect(() => {
         const fetchUserProfile = async () => {
@@ -53,6 +54,7 @@ const MyProfileScreen = ({ navigateTo }) => {
             } else {
                 const source = response.assets[0].uri;
                 setSelectedImageUri(source);
+                setIsEditing(true); // Enable editing mode after image selection
             }
         } catch (error) {
             console.error('Error launching image library: ', error);
@@ -66,18 +68,13 @@ const MyProfileScreen = ({ navigateTo }) => {
             if (!response.ok) {
                 throw new Error('Failed to fetch the image from the given URI');
             }
-    
+
             const blob = await response.blob();
-            console.log('Blob created successfully'); // Debugging
             const imagePath = `profileImages/${auth.currentUser.uid}/${Date.now()}.jpg`;
             const storageRef = ref(storage, imagePath);
-            console.log('Uploading to storage path:', imagePath); // Debugging
-    
+
             const snapshot = await uploadBytes(storageRef, blob);
-            console.log('Upload successful:', snapshot); // Debugging
-    
             const downloadURL = await getDownloadURL(snapshot.ref);
-            console.log('Download URL:', downloadURL); // Debugging
             return downloadURL;
         } catch (error) {
             console.error('Error uploading image: ', error);
@@ -89,11 +86,11 @@ const MyProfileScreen = ({ navigateTo }) => {
     const handleSaveProfile = async () => {
         try {
             let profileImageUri = selectedImageUri;
-    
+
             if (selectedImageUri && !selectedImageUri.startsWith('https://')) {
                 profileImageUri = await uploadImageToStorage(selectedImageUri);
             }
-    
+
             if (profileImageUri) {
                 const userDocRef = doc(firestore, 'users', auth.currentUser.uid);
                 await updateDoc(userDocRef, {
@@ -102,8 +99,9 @@ const MyProfileScreen = ({ navigateTo }) => {
                     email,
                     profileImageUri,
                 });
-    
+
                 Alert.alert('Profile updated successfully!');
+                setIsEditing(false); // Disable editing mode after saving
             } else {
                 setError('Failed to save profile image.');
             }
@@ -113,11 +111,15 @@ const MyProfileScreen = ({ navigateTo }) => {
         }
     };
 
+    const handleEditProfile = () => {
+        setIsEditing(true); // Enable editing mode
+    };
+
     return (
         <View style={styles.container}>
             {/* Add the Menu component without the profile image */}
             <Menu navigateTo={navigateTo} showProfileImage={false} />
-            
+
             <View style={styles.imageContainer}>
                 {selectedImageUri ? (
                     <Image source={{ uri: selectedImageUri }} style={styles.profileImage} />
@@ -132,30 +134,52 @@ const MyProfileScreen = ({ navigateTo }) => {
             <TextInput
                 style={styles.input}
                 placeholder="Full Name"
+                placeholderTextColor="#d3d3d3" // Set placeholder text color to gray
                 value={fullName}
-                onChangeText={setFullName}
+                onChangeText={(text) => {
+                    setFullName(text);
+                    setIsEditing(true); // Enable editing mode when user types
+                }}
+                editable={isEditing}
             />
             <TextInput
                 style={styles.input}
                 placeholder="Username"
+                placeholderTextColor="#d3d3d3" // Set placeholder text color to gray
                 value={username}
-                onChangeText={setUsername}
+                onChangeText={(text) => {
+                    setUsername(text);
+                    setIsEditing(true); // Enable editing mode when user types
+                }}
+                editable={isEditing}
             />
             <TextInput
                 style={styles.input}
                 placeholder="Email"
+                placeholderTextColor="#d3d3d3" // Set placeholder text color to gray
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(text) => {
+                    setEmail(text);
+                    setIsEditing(true); // Enable editing mode when user types
+                }}
+                editable={isEditing}
                 keyboardType="email-address"
             />
             <TextInput
                 style={styles.input}
                 placeholder="Password"
+                placeholderTextColor="#d3d3d3" // Set placeholder text color to gray
                 value={password}
                 secureTextEntry
+                editable={false} // Keep password field read-only
             />
-            <TouchableOpacity onPress={handleSaveProfile} style={styles.button}>
-                <Text style={styles.buttonText}>Save Profile</Text>
+            <TouchableOpacity
+                onPress={isEditing ? handleSaveProfile : handleEditProfile}
+                style={styles.button}
+            >
+                <Text style={styles.buttonText}>
+                    {isEditing ? 'Save Profile Changes' : 'Edit Profile'}
+                </Text>
             </TouchableOpacity>
             {error && <Text style={styles.errorText}>{error}</Text>}
         </View>
@@ -166,7 +190,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         padding: 20,
-        backgroundColor: '#fff',
+        backgroundColor: '#000', // Black background
     },
     imageContainer: {
         alignItems: 'center',
@@ -181,32 +205,34 @@ const styles = StyleSheet.create({
     },
     cameraIconContainer: {
         position: 'absolute',
-        bottom: 0,
-        right: 0,
-        backgroundColor: '#fff',
+        bottom: 0, // Adjusted to move the icon slightly above the bottom of the image
+        right: 105,  // Adjusted to move the icon slightly left from the right edge of the image
+        backgroundColor: '#000', // Black background for the camera icon
         borderRadius: 15,
         padding: 2,
     },
     cameraIcon: {
         width: 30,
         height: 30,
+        tintColor: '#fff', // White camera icon
     },
     input: {
         width: '100%',
         padding: 10,
-        borderColor: '#ccc',
+        borderColor: '#d3d3d3', // Light gray borders
         borderWidth: 1,
         borderRadius: 5,
         marginBottom: 20,
+        color: '#fff', // White text color
     },
     button: {
-        backgroundColor: '#007bff',
+        backgroundColor: '#333', // Darker button background
         padding: 10,
         borderRadius: 5,
         alignItems: 'center',
     },
     buttonText: {
-        color: '#fff',
+        color: '#fff', // White text color
         fontSize: 16,
     },
     errorText: {

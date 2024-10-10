@@ -39,7 +39,6 @@ const Menu = ({ navigateTo, showProfileImage = true }) => {
 
   return (
     <View style={styles.container}>
-      {/* Three-bar Menu Button */}
       <View style={styles.header}>
         <TouchableOpacity onPress={toggleMenu} style={styles.menuButton}>
           <Image
@@ -57,7 +56,6 @@ const Menu = ({ navigateTo, showProfileImage = true }) => {
           </TouchableOpacity>
         )}
       </View>
-
       {menuVisible && (
         <View style={styles.menuContainer}>
           <View style={styles.menuHeader}>
@@ -103,55 +101,41 @@ const Menu = ({ navigateTo, showProfileImage = true }) => {
           </TouchableOpacity>
         </View>
       )}
-
-      {/* Bottom Navigation */}
-      <View style={styles.bottomNavigation}>
-        {/* Friend Circle Option */}
-        <TouchableOpacity style={styles.bottomNavItem} onPress={() => handleMenuSelection('MyFriendsScreen')}>
-          <Image source={require('../../assets/circle.png')} style={styles.bottomNavIcon} />
-        </TouchableOpacity>
-
-        {/* Create Post Option */}
-        <TouchableOpacity style={styles.bottomNavItem} onPress={() => handleMenuSelection('MyFlixScreen')}>
-          <View style={styles.addButtonWrapper}>
-            <Image source={require('../../assets/add.png')} style={styles.addButtonIcon} />
-          </View>
-        </TouchableOpacity>
-
-        {/* Home Feed Option */}
-        <TouchableOpacity style={styles.bottomNavItem} onPress={() => handleMenuSelection('HomeScreen')}>
-          <Image source={require('../../assets/home.png')} style={styles.bottomNavIcon} />
-        </TouchableOpacity>
-      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    justifyContent: 'flex-end', // Position the bottom menu at the bottom
+    position: 'absolute',
+    top: 40,
+    left: 10,
+    zIndex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingRight: 20,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 10,
+    width: '100%',
   },
   menuButton: {
-    padding: 8,
+    padding: 16,
   },
   menuIcon: {
-    width: 24,
-    height: 24,
+    width: 32,
+    height: 32,
     tintColor: '#fff', // Tint the icon to white
   },
   profileButton: {
-    padding: 8,
+    padding: 16,
   },
   profilePhotoHolder: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#d3d3d3',
   },
   menuContainer: {
@@ -159,106 +143,74 @@ const styles = StyleSheet.create({
     top: 60,
     left: 0,
     backgroundColor: '#ffffff',
-    padding: 15,
-    borderRadius: 20, // Rounded corners
+    padding: 20,
+    borderRadius: 30, // Rounded corners
     elevation: 5,
-    width: 180, // Adjust width as needed
+    width: 220, // Adjust width as needed
   },
   menuHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8, // Adjusted for closer line
+    marginBottom: 10, // Adjusted for closer line
   },
   horizontalLine: {
     borderBottomColor: '#000', // Black line
     borderBottomWidth: 1,
     width: '100%', // Span the entire width
-    marginBottom: 15, // Spacing before the options
+    marginBottom: 20, // Spacing before the options
   },
   greetingText: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#000000',
   },
   closeButton: {
     padding: 5,
   },
   closeButtonText: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#000000',
   },
   menuItem: {
     flexDirection: 'row', // Align items horizontally
     alignItems: 'center', // Center align vertically
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
   },
   menuIconItem: {
-    width: 18, // Smaller size for all icons
-    height: 18,
-    marginRight: 8, // Spacing between icon and text
+    width: 20, // Same size for all icons
+    height: 20,
+    marginRight: 10, // Spacing between icon and text
     tintColor: '#000', // Set icon color to black
   },
   compositeIconContainer: {
-    width: 18, // Set size for the composite icon container
-    height: 18,
-    marginRight: 8, // Spacing between icon and text
+    width: 20, // Set size for the composite icon container
+    height: 20,
+    marginRight: 10, // Spacing between icon and text
     position: 'relative', // Relative positioning for overlay
   },
   circleIcon: {
-    width: 18, // Same size as the container
-    height: 18,
+    width: 20, // Same size as the container
+    height: 20,
     position: 'absolute',
     top: 0,
     left: 0,
   },
   peopleIcon: {
-    width: 10, // Slightly smaller size for the inner icon
-    height: 10,
+    width: 12, // Slightly smaller size for the inner icon
+    height: 12,
     position: 'absolute',
     top: 4, // Center the inner icon vertically
     left: 4, // Center the inner icon horizontally
   },
   menuText: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#000000',
   },
-  bottomNavigation: {
-    position: 'absolute',
-    bottom: 20, // Position at the bottom of the screen
-    left: '25%', // Center the menu horizontally by reducing the width
-    right: '25%',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: '#ffffff', // White background
-    paddingVertical: 5,
-    borderRadius: 20, // More compact shape
-    elevation: 5, // Shadow effect
-    height: 40, // Shorter height for the bar
-  },
-  bottomNavItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1, // Equal space for all items
-  },
-  bottomNavIcon: {
-    width: 20,
+  menuIconSmall: {
+    width: 20, // Smaller size for the icon next to text
     height: 20,
-    tintColor: '#000', // Set icon color to black
-  },
-  addButtonWrapper: {
-    width: 40,
-    height: 40,
-    backgroundColor: '#fff', // White background
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5,
-  },
-  addButtonIcon: {
-    width: 20,
-    height: 20,
-    tintColor: '#000', // Set icon color to black
+    marginRight: 8, // Space between icon and text
   },
 });
 
