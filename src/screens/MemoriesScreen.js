@@ -8,9 +8,11 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  Modal,
 } from 'react-native';
-import { firestore, auth } from '../../firebase/firebaseConfigs';
+import { firestore, auth, storage } from '../../firebase/firebaseConfigs'; // Added storage import
 import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { ref, getDownloadURL } from 'firebase/storage'; // Added Firebase storage method
 import { format } from 'date-fns';
 import Menu from '../components/Menu';
 
@@ -27,45 +29,43 @@ const getDaysInMonth = (year, month) => {
   return days;
 };
 
-const BottomRow = ({ days, renderDay }) => {
-  return (
-    <View style={styles.bottomRow}>
-      {days.map((day) => renderDay(day))}
-    </View>
-  );
-};
+const BottomRow = ({ days, renderDay }) => (
+  <View style={styles.bottomRow}>
+    {days.map((day) => renderDay(day))}
+  </View>
+);
 
 const MemoriesScreen = ({ navigateTo }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [posts, setPosts] = useState({});
   const [loading, setLoading] = useState(true);
-  const [signUpTimestamp, setSignUpTimestamp] = useState(null); // Correct state name
+  const [signUpTimestamp, setSignUpTimestamp] = useState(null);
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [profileImages, setProfileImages] = useState({});
 
   const daysInMonth = getDaysInMonth(currentMonth.getFullYear(), currentMonth.getMonth());
 
   useEffect(() => {
-    fetchUserSignUpTimestamp(); // Fetch the user's sign-up date
+    fetchUserSignUpTimestamp();
     fetchPostsForMonth();
   }, [currentMonth]);
 
-  // Fetch the user's sign-up date from Firebase
   const fetchUserSignUpTimestamp = async () => {
     try {
       const userId = auth.currentUser.uid;
-      const userDocRef = doc(firestore, 'users', userId); // Reference to the user's document
+      const userDocRef = doc(firestore, 'users', userId);
       const userDoc = await getDoc(userDocRef);
-  
+
       if (userDoc.exists()) {
         const userData = userDoc.data();
-        
-        // Check if signUpTimestamp exists, handle the case where it's missing
         if (userData.signUpTimestamp) {
           const signUpTimestamp = userData.signUpTimestamp;
-          setSignUpTimestamp(new Date(signUpTimestamp.seconds * 1000)); // Convert Firebase timestamp to JS Date
+          setSignUpTimestamp(new Date(signUpTimestamp.seconds * 1000));
         } else {
           console.error('signUpTimestamp is missing in the user document');
-          // Optionally, set a default timestamp if signUpTimestamp is missing
-          setSignUpTimestamp(new Date()); // Set to current date as a fallback
+          setSignUpTimestamp(new Date());
         }
       } else {
         console.error('User document does not exist');
@@ -74,7 +74,6 @@ const MemoriesScreen = ({ navigateTo }) => {
       console.error('Error fetching sign-up date:', err);
     }
   };
-  
 
   const fetchPostsForMonth = async () => {
     setLoading(true);
@@ -95,7 +94,7 @@ const MemoriesScreen = ({ navigateTo }) => {
         querySnapshot.forEach((doc) => {
           const data = doc.data();
           const postDate = format(new Date(data.timestamp.seconds * 1000), 'yyyy-MM-dd');
-          postMap[postDate] = data.imageUris?.[0] || null; // Store the first image URI or null
+          postMap[postDate] = data;
         });
         setPosts(postMap);
         setLoading(false);
@@ -107,74 +106,137 @@ const MemoriesScreen = ({ navigateTo }) => {
       setLoading(false);
     }
   };
-const handlePrevMonth = () => {
-  if (signUpTimestamp) {
-    const newMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
-    if (newMonth >= signUpTimestamp) {
-      setCurrentMonth(newMonth);
+
+  // Fetch the user's profile image from Firebase Storage
+  const fetchUserProfileImage = async (userId) => {
+    try {
+      const userDoc = await getDoc(doc(firestore, 'users', userId));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        if (userData.profileImageUri) {
+          setProfileImages((prev) => ({ ...prev, [userId]: userData.profileImageUri })); // Use the stored URL
+        } else {
+          console.error('No profile image found for user:', userId);
+          setProfileImages((prev) => ({ ...prev, [userId]: null }));
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching profile image:', error);
+      setProfileImages((prev) => ({ ...prev, [userId]: null }));
     }
-  }
-};
+  };
+  
 
-const handleNextMonth = () => {
-  const currentDate = new Date(); // Today's date
-  const nextMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
-
-  // Ensure users can't go past the current month
-  if (nextMonth <= currentDate) {
-    setCurrentMonth(nextMonth);
-  }
-};
-
-const renderNavigationArrows = () => {
-  const currentDate = new Date(); // Today's date
-  const isNextDisabled = currentMonth.getFullYear() === currentDate.getFullYear() && currentMonth.getMonth() === currentDate.getMonth();
-  const isPrevDisabled = signUpTimestamp && currentMonth <= signUpTimestamp;
-
-  return (
-    <View style={styles.header}>
-      {/* Previous month arrow */}
-      <TouchableOpacity onPress={handlePrevMonth} disabled={isPrevDisabled}>
-        <Text style={[styles.arrowText, isPrevDisabled && styles.disabledArrow]}>
-          ‹
-        </Text>
-      </TouchableOpacity>
-
-      {/* Current month text */}
-      <Text style={styles.monthText}>
-        {format(currentMonth, 'MMMM yyyy')}
-      </Text>
-
-      {/* Next month arrow */}
-      <TouchableOpacity onPress={handleNextMonth} disabled={isNextDisabled}>
-        <Text style={[styles.arrowText, isNextDisabled && styles.disabledArrow]}>
-          ›
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
-};
-
-
-  const renderDay = (day) => {
+  const handleDayClick = (day) => {
     const formattedDate = format(day, 'yyyy-MM-dd');
-    const postImage = posts[formattedDate]; // Get the image for the day if exists
+    const postData = posts[formattedDate];
+
+    if (postData) {
+      setSelectedPost(postData);
+      setIsModalVisible(true);
+      setCurrentImageIndex(0);
+
+      // Fetch the profile image for the post's user if not already fetched
+      if (!profileImages[postData.userId]) {
+        fetchUserProfileImage(postData.userId);
+      }
+    }
+  };
+
+  const renderPostModal = () => {
+    if (!selectedPost) return null;
+
+    const handleNextImage = () => {
+      setCurrentImageIndex((prevIndex) => (prevIndex + 1) % selectedPost.imageUris.length);
+    };
+
+    const handlePrevImage = () => {
+      setCurrentImageIndex((prevIndex) => (prevIndex - 1 + selectedPost.imageUris.length) % selectedPost.imageUris.length);
+    };
 
     return (
-      <View key={formattedDate} style={styles.dayContainer}>
-        <Text style={styles.dayText}>{day.getDate()}</Text>
-        <View style={styles.imageSquareContainer}>
-          {postImage ? (
-            <Image source={{ uri: postImage }} style={styles.imageSquare} />
-          ) : (
-            <View style={styles.imagePlaceholder} /> // Empty space with a border if no post
-          )}
+      <Modal visible={isModalVisible} transparent={true} animationType="slide">
+        <View style={styles.modalContainer}>
+          <TouchableOpacity style={styles.closeIcon} onPress={() => setIsModalVisible(false)}>
+            <Text style={styles.closeIconText}>✕</Text>
+          </TouchableOpacity>
+
+          <View style={styles.carouselContainer}>
+            {selectedPost.imageUris.length > 1 && (
+              <>
+                {currentImageIndex > 0 && (
+                  <TouchableOpacity style={styles.arrowLeft} onPress={handlePrevImage}>
+                    <Text style={styles.arrowText}>‹</Text>
+                  </TouchableOpacity>
+                )}
+                {currentImageIndex < selectedPost.imageUris.length - 1 && (
+                  <TouchableOpacity style={styles.arrowRight} onPress={handleNextImage}>
+                    <Text style={styles.arrowText}>›</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+
+            <Image
+              source={{ uri: selectedPost.imageUris[currentImageIndex] }}
+              style={styles.postImageModal}
+              resizeMode="cover"
+            />
+          </View>
+
+          <View style={styles.postDetailsRow}>
+            <Image
+              source={profileImages[selectedPost.userId] ? { uri: profileImages[selectedPost.userId] } : require('../../assets/profile-placeholder.png')}
+              style={styles.profileImageSmall}
+            />
+            <View style={styles.postDetails}>
+              <Text style={styles.username}>{selectedPost.username}</Text>
+              {selectedPost.caption ? <Text style={styles.caption}>{selectedPost.caption}</Text> : null}
+            </View>
+          </View>
         </View>
+      </Modal>
+    );
+  };
+
+  const handlePrevMonth = () => {
+    if (signUpTimestamp) {
+      const newMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+      if (newMonth >= signUpTimestamp) {
+        setCurrentMonth(newMonth);
+      }
+    }
+  };
+
+  const handleNextMonth = () => {
+    const currentDate = new Date();
+    const nextMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
+
+    if (nextMonth <= currentDate) {
+      setCurrentMonth(nextMonth);
+    }
+  };
+
+  const renderNavigationArrows = () => {
+    const currentDate = new Date();
+    const isNextDisabled = currentMonth.getFullYear() === currentDate.getFullYear() && currentMonth.getMonth() === currentDate.getMonth();
+    const isPrevDisabled = signUpTimestamp && currentMonth <= signUpTimestamp;
+
+    return (
+      <View style={styles.header}>
+        <TouchableOpacity onPress={handlePrevMonth} disabled={isPrevDisabled}>
+          <Text style={[styles.arrowText, isPrevDisabled && styles.disabledArrow]}>‹</Text>
+        </TouchableOpacity>
+        <Text style={styles.monthText}>
+          {format(currentMonth, 'MMMM yyyy')}
+        </Text>
+        <TouchableOpacity onPress={handleNextMonth} disabled={isNextDisabled}>
+          <Text style={[styles.arrowText, isNextDisabled && styles.disabledArrow]}>›</Text>
+        </TouchableOpacity>
       </View>
     );
   };
 
-  // Helper function to render the rows of the grid
   const renderCalendarRows = () => {
     const rows = [];
     let week = [];
@@ -182,7 +244,6 @@ const renderNavigationArrows = () => {
     daysInMonth.forEach((day, index) => {
       week.push(day);
 
-      // Push full rows (7 days)
       if ((index + 1) % 7 === 0) {
         rows.push(
           <View key={index} style={styles.weekRow}>
@@ -192,35 +253,37 @@ const renderNavigationArrows = () => {
         week = [];
       }
 
-      // Handle the last row that may have fewer than 7 days
       if (index === daysInMonth.length - 1 && week.length > 0) {
-        rows.push(
-          <BottomRow key={index} days={week} renderDay={renderDay} />
-        );
+        rows.push(<BottomRow key={index} days={week} renderDay={renderDay} />);
       }
     });
 
     return rows;
   };
 
+  const renderDay = (day) => {
+    const formattedDate = format(day, 'yyyy-MM-dd');
+    const postImage = posts[formattedDate]?.imageUris?.[0];
+
+    return (
+      <TouchableOpacity key={formattedDate} style={styles.dayContainer} onPress={() => handleDayClick(day)}>
+        <Text style={styles.dayText}>{day.getDate()}</Text>
+        <View style={styles.imageSquareContainer}>
+          {postImage ? (
+            <Image source={{ uri: postImage }} style={styles.imageSquare} />
+          ) : (
+            <View style={styles.imagePlaceholder} />
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <Menu navigateTo={navigateTo} />
       <View style={styles.contentContainer}>
-        <View style={styles.header}>
-          {/* Disable previous month button if it goes before sign-up date */}
-          <TouchableOpacity onPress={handlePrevMonth} disabled={signUpTimestamp && currentMonth <= signUpTimestamp}>
-            <Text style={[styles.arrowText, signUpTimestamp && currentMonth <= signUpTimestamp && styles.disabledArrow]}>
-              ‹
-            </Text>
-          </TouchableOpacity>
-          <Text style={styles.monthText}>
-            {format(currentMonth, 'MMMM yyyy')}
-          </Text>
-          <TouchableOpacity onPress={handleNextMonth}>
-            <Text style={styles.arrowText}>›</Text>
-          </TouchableOpacity>
-        </View>
+        {renderNavigationArrows()}
         {loading ? (
           <Text style={styles.loadingText}>Loading...</Text>
         ) : (
@@ -231,12 +294,15 @@ const renderNavigationArrows = () => {
           </ScrollView>
         )}
       </View>
+
+      {/* Modal to display the selected post */}
+      {renderPostModal()}
     </SafeAreaView>
   );
 };
 
-// Adjust the size for squares to fit 7 days in a row
-const squareSize = width / 7 - 10; // Adjusted size for 7 squares per row
+const squareSize = width / 7 - 10;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -264,26 +330,93 @@ const styles = StyleSheet.create({
     fontSize: 24,
   },
   disabledArrow: {
-    color: 'gray', // Faded effect for disabled arrows
+    color: 'gray',
   },
   loadingText: {
     textAlign: 'center',
     color: '#fff',
   },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+  },
+  closeIcon: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    zIndex: 1,
+  },
+  closeIconText: {
+    fontSize: 30,
+    color: '#fff',
+  },
+  postDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginTop: 10,
+  },
+  profileImageSmall: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
+    backgroundColor: '#ccc',
+  },
+  postDetails: {
+    flex: 1,
+  },
+  username: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  caption: {
+    fontSize: 14,
+    color: '#ccc',
+  },
+  carouselContainer: {
+    position: 'relative',
+    alignItems: 'center',
+  },
+  postImageModal: {
+    width: width - 60,
+    height: width * 0.8,
+    borderRadius: 10,
+  },
+  arrowLeft: {
+    position: 'absolute',
+    left: 10,
+    top: '50%',
+    transform: [{ translateY: -20 }],
+    zIndex: 1,
+  },
+  arrowRight: {
+    position: 'absolute',
+    right: 10,
+    top: '50%',
+    transform: [{ translateY: -20 }],
+    zIndex: 1,
+  },
+  arrowText: {
+    color: '#fff',
+    fontSize: 30,
+  },
   scrollContent: {
-    alignItems: 'center', // Center the scroll view content
+    alignItems: 'center',
   },
   gridContainer: {
     width: '100%',
   },
   weekRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between', // Ensures even spacing between squares in a row
+    justifyContent: 'space-between',
     marginBottom: 10,
   },
   bottomRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-start', // Left align the bottom row
+    justifyContent: 'flex-start',
     marginBottom: 10,
   },
   dayContainer: {
@@ -298,7 +431,7 @@ const styles = StyleSheet.create({
   imageSquareContainer: {
     width: squareSize,
     height: squareSize,
-    borderColor: 'white', // White border for the square
+    borderColor: 'white',
     borderWidth: 0.5,
     justifyContent: 'center',
     alignItems: 'center',
@@ -314,4 +447,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default MemoriesScreen
+export default MemoriesScreen;

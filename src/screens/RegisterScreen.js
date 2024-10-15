@@ -39,7 +39,7 @@ const RegisterScreen = ({ setCurrentScreen }) => {
         <TextInput
           style={styles.input}
           placeholder="Full Name"
-          placeholderTextColor="#D2B48C"
+          placeholderTextColor="#FFFFFF"
           value={registerFullName}
           onChangeText={text => setRegisterFullName(text)}
           autoCapitalize="words"
@@ -48,7 +48,7 @@ const RegisterScreen = ({ setCurrentScreen }) => {
         <TextInput
           style={styles.input}
           placeholder="Username"
-          placeholderTextColor="#D2B48C"
+          placeholderTextColor="#FFFFFF"
           value={registerUsername}
           onChangeText={text => setRegisterUsername(text)}
           autoCapitalize="none"
@@ -57,7 +57,7 @@ const RegisterScreen = ({ setCurrentScreen }) => {
         <TextInput
           style={styles.input}
           placeholder="Email"
-          placeholderTextColor="#D2B48C"
+          placeholderTextColor="#FFFFFF"
           value={registerEmail}
           onChangeText={text => setRegisterEmail(text)}
           autoCapitalize="none"
@@ -67,7 +67,7 @@ const RegisterScreen = ({ setCurrentScreen }) => {
         <TextInput
           style={styles.input}
           placeholder="Password"
-          placeholderTextColor="#D2B48C"
+          placeholderTextColor="#FFFFFF"
           secureTextEntry
           value={registerPassword}
           onChangeText={text => setRegisterPassword(text)}
@@ -96,7 +96,7 @@ const RegisterScreen = ({ setCurrentScreen }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#013220',
+    backgroundColor: '#000000',
   },
   inner: {
     flex: 1,
@@ -105,38 +105,39 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 60,
-    color: '#D2B48C',
+    letterSpacing: 3,
+    color: '#FFFFFF',
     fontWeight: 'bold',
   },
   input: {
     width: '80%',
-    color: '#D2B48C',
+    color: '#FFFFFF',
     fontSize: 18,
     paddingVertical: 10,
     paddingHorizontal: 5,
     borderBottomWidth: 1,
-    borderBottomColor: '#D2B48C',
+    borderBottomColor: '#FFFFFF',
     marginVertical: 10,
   },
   button: {
     marginTop: 20,
     paddingVertical: 10,
     paddingHorizontal: 20,
-    backgroundColor: '#D2B48C',
+    backgroundColor: '#FFFFFF',
     borderRadius: 5,
   },
   buttonText: {
     fontSize: 20,
-    color: '#013220',
+    color: '#000000',
     fontWeight: 'bold',
   },
   signUpText: {
     marginTop: 20,
-    color: '#D2B48C',
+    color: '#FFFFFF',
     fontSize: 16,
   },
   signUpLink: {
-    color: '#D2B48C',
+    color: '#FFFFFF',
     fontWeight: 'bold',
     textDecorationLine: 'underline',
   },

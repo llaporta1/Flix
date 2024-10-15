@@ -18,6 +18,8 @@ import { auth, firestore } from './firebase/firebaseConfigs';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { setDoc, doc, collection, query, where, getDocs } from 'firebase/firestore';
 import { ThemeProvider } from './src/contexts/ThemeContext'; // Import ThemeProvider
+import MyCirclesScreen from './src/screens/MyCirclesScreen';
+import CircleDetailsScreen from './src/screens/CircleDetailsScreen';
 
 const App = () => {
   const [currentScreen, setCurrentScreen] = useState('Main');
@@ -28,6 +30,7 @@ const App = () => {
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
   const [registerUsername, setRegisterUsername] = useState('');
+  
 
   useEffect(() => {
     if (currentScreen === 'Main') {
@@ -86,7 +89,7 @@ const App = () => {
   const renderScreen = () => {
     switch (currentScreen) {
       case 'Main':
-        return <MainScreen />;
+        return <MainScreen setCurrentScreen={setCurrentScreen} />; // Pass the prop here
       case 'Login':
         return (
           <LoginScreen
@@ -115,12 +118,19 @@ const App = () => {
         );
       case 'Home':
         return <HomeScreen navigateTo={navigateTo} />;
+      // Other cases remain the same
+      case 'Home':
+        return <HomeScreen navigateTo={navigateTo} />;
       case 'MyFriends':
         return <MyFriendsScreen navigateTo={navigateTo} />;
       case 'Memories':
         return <MemoriesScreen navigateTo={navigateTo} />;
       case 'FriendCircles':
         return <MyFriendCirclesScreen navigateTo={navigateTo} />;
+      case 'MyCirclesScreen':
+        return <MyCirclesScreen navigateTo={navigateTo} />;
+      case 'CircleDetails':
+        return <CircleDetailsScreen route={{ params: screenParams }} navigateTo={navigateTo} />;
       case 'Settings':
         return <SettingsScreen navigateTo={navigateTo} />;
       case 'Help':
@@ -132,7 +142,7 @@ const App = () => {
       case 'MyFlixExisting':
         return <MyFlixExistingScreen navigateTo={navigateTo} route={{ params: screenParams }} />;
       default:
-        return <MainScreen />;
+        return <MainScreen setCurrentScreen={setCurrentScreen} />; // Ensure you pass the prop here too
     }
   };
 

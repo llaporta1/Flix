@@ -1,156 +1,165 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   SafeAreaView,
   View,
   Text,
   TouchableOpacity,
-  FlatList,
   StyleSheet,
-  Image,
   Modal,
   TextInput,
-  Alert,
+  ImageBackground,
+  Image,
+  ScrollView,
 } from 'react-native';
-import { auth, firestore } from '../../firebase/firebaseConfigs';
-import { collection, query, where, getDocs, addDoc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
+import { launchImageLibrary } from 'react-native-image-picker';
+import { auth, firestore, storage } from '../../firebase/firebaseConfigs';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Menu from '../components/Menu';
 
 const MyFriendCirclesScreen = ({ navigateTo }) => {
-  const [friendCircles, setFriendCircles] = useState([]);
-  const [circleName, setCircleName] = useState('');
-  const [circleCode, setCircleCode] = useState('');
+  const [circleName, setCircleName] = useState('New Friend Circle');
+  const [imageUrl, setimageUrl] = useState(null); // Selected image for the circle background
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showJoinModal, setShowJoinModal] = useState(false);
-  const [selectedCircle, setSelectedCircle] = useState(null);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [selectedFriends, setSelectedFriends] = useState([]);
 
-  useEffect(() => {
-    fetchFriendCircles();
-  }, []);
+  const selectImage = async () => {
+    try {
+      const response = await launchImageLibrary({
+        mediaType: 'photo',
+        includeBase64: false,
+      });
 
-  const fetchFriendCircles = async () => {
-    const userId = auth.currentUser.uid;
-    const circlesRef = collection(firestore, 'friendCircles');
-    const q = query(circlesRef, where('members', 'array-contains', userId));
-    const querySnapshot = await getDocs(q);
-    const circles = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-    setFriendCircles(circles);
+      if (response.didCancel) {
+        console.log('User cancelled image picker');
+      } else if (response.errorMessage) {
+        console.error('ImagePicker Error: ', response.errorMessage);
+      } else {
+        const source = response.assets[0].uri;
+        setimageUrl(source); // Set the selected image as the circle background
+      }
+    } catch (error) {
+      console.error('Error launching image library: ', error);
+    }
+  };
+
+  const uploadImageToFirebase = async (imageUri) => {
+    try {
+      const response = await fetch(imageUri);
+      const blob = await response.blob();
+      const storageRef = ref(storage, `imageUrls/${auth.currentUser.uid}_${Date.now()}`);
+      const snapshot = await uploadBytes(storageRef, blob);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      return downloadURL;
+    } catch (error) {
+      console.error('Error uploading image: ', error);
+      return null;
+    }
   };
 
   const createFriendCircle = async () => {
     const userId = auth.currentUser.uid;
-    const code = generateUniqueCode();
-    await addDoc(collection(firestore, 'friendCircles'), {
-      name: circleName,
-      code,
-      members: [userId],
-      createdAt: serverTimestamp(),
-    });
-    Alert.alert('Success', `Circle created with code: ${code}`);
-    setShowCreateModal(false);
-    fetchFriendCircles();
-  };
 
-  const joinFriendCircle = async () => {
-    const circlesRef = collection(firestore, 'friendCircles');
-    const q = query(circlesRef, where('code', '==', circleCode));
-    const querySnapshot = await getDocs(q);
-
-    if (querySnapshot.empty) {
-      Alert.alert('Error', 'No circle found with this code.');
-      return;
+    let downloadUrl = '';
+    if (imageUrl) {
+      downloadUrl = await uploadImageToFirebase(imageUrl);
     }
 
-    const circleDoc = querySnapshot.docs[0];
-    const userId = auth.currentUser.uid;
-    await updateDoc(doc(firestore, 'friendCircles', circleDoc.id), {
-      members: arrayUnion(userId),
+    await addDoc(collection(firestore, 'friendCircles'), {
+      name: circleName,
+      members: [userId, ...selectedFriends],
+      imageUrl: downloadUrl,
+      createdAt: serverTimestamp(),
     });
 
-    Alert.alert('Success', 'You have joined the circle!');
-    setShowJoinModal(false);
-    fetchFriendCircles();
+    setShowCreateModal(false);
+    setCircleName('New Friend Circle');
+    setimageUrl(null);
+    setSelectedFriends([]);
   };
-
-  const renderCircleItem = ({ item }) => (
-    <View style={styles.circleItem}>
-      <Image source={{ uri: item.imageUrl }} style={styles.circleImage} />
-      <View style={styles.circleTextContainer}>
-        <Text style={styles.circleName}>{item.name}</Text>
-        <Text style={styles.circleMembers}>
-          {item.members.slice(0, 2).join(', ')} + {item.members.length - 2} more
-        </Text>
-      </View>
-    </View>
-  );
 
   return (
     <SafeAreaView style={styles.container}>
       <Menu navigateTo={navigateTo} />
       <View style={styles.contentContainer}>
         <Text style={styles.headerText}>My Friend Circles</Text>
-        
-        <TouchableOpacity style={styles.optionButton} onPress={() => navigateTo('MyCircles')}>
-          <Text style={styles.optionText}>My Circles</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.optionButton} onPress={() => setShowJoinModal(true)}>
-          <Text style={styles.optionText}>Join a Circle</Text>
-        </TouchableOpacity>
+
+        {/* Vertical List of Options */}
         <TouchableOpacity style={styles.optionButton} onPress={() => setShowCreateModal(true)}>
           <Text style={styles.optionText}>Create a Circle</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.optionButton} onPress={() => navigateTo('FindCircles')}>
-          <Text style={styles.optionText}>Find Circles</Text>
+
+        <TouchableOpacity style={styles.optionButton} onPress={() => navigateTo('MyCirclesScreen')}>
+          <Text style={styles.optionText}>My Circles</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.optionButton} onPress={() => navigateTo('Invitations')}>
+
+        <TouchableOpacity style={styles.optionButton} onPress={() => setShowInviteModal(true)}>
           <Text style={styles.optionText}>Invitations</Text>
         </TouchableOpacity>
 
-        {/* List of Circles */}
-        <FlatList
-          data={friendCircles}
-          renderItem={renderCircleItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.circlesList}
-        />
-        
-        {/* Modals for Join/Create */}
+        {/* Create Circle Modal */}
         <Modal visible={showCreateModal} animationType="slide" transparent={true}>
-          <View style={styles.modalContainer}>
+          <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <TextInput
-                placeholder="Circle Name"
-                value={circleName}
-                onChangeText={setCircleName}
-                style={styles.input}
-              />
-              <TouchableOpacity style={styles.modalButton} onPress={createFriendCircle}>
-                <Text style={styles.modalButtonText}>Create</Text>
+              {/* Circle Image as Background */}
+              <ImageBackground
+                source={imageUrl ? { uri: imageUrl } : null}
+                style={styles.imageUrlBackground}
+              >
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>{circleName}</Text>
+                  <TouchableOpacity onPress={() => setShowCreateModal(false)}>
+                    <Text style={styles.closeModal}>X</Text>
+                  </TouchableOpacity>
+                </View>
+              </ImageBackground>
+
+              <View style={styles.inputWithIcon}>
+                <TextInput
+                  placeholder="Enter Circle Name"
+                  value={circleName}
+                  onChangeText={setCircleName}
+                  style={styles.input}
+                  placeholderTextColor="#000"
+                />
+                {/* <Image
+                  source={require('../../pen.png')}
+                  style={styles.penIcon}
+                /> */}
+              </View>
+
+              <TouchableOpacity style={styles.modalButton} onPress={selectImage}>
+                <View style={styles.buttonWithIcon}>
+                  <Text style={styles.modalButtonText}>Choose Circle Image</Text>
+                  {/* <Image
+                    source={require('../../images.png')}
+                    style={styles.imagesIcon}
+                  /> */}
+                </View>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalButton} onPress={() => setShowCreateModal(false)}>
-                <Text style={styles.modalButtonText}>Cancel</Text>
+
+              <TouchableOpacity style={styles.modalButton} onPress={createFriendCircle}>
+                <Text style={styles.modalButtonText}>Create Circle</Text>
               </TouchableOpacity>
             </View>
           </View>
         </Modal>
 
-        <Modal visible={showJoinModal} animationType="slide" transparent={true}>
-          <View style={styles.modalContainer}>
+        {/* Invite Friends Modal */}
+        <Modal visible={showInviteModal} animationType="slide" transparent={true}>
+          <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <TextInput
-                placeholder="Enter Circle Code"
-                value={circleCode}
-                onChangeText={setCircleCode}
-                style={styles.input}
-              />
-              <TouchableOpacity style={styles.modalButton} onPress={joinFriendCircle}>
-                <Text style={styles.modalButtonText}>Join</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modalButton} onPress={() => setShowJoinModal(false)}>
-                <Text style={styles.modalButtonText}>Cancel</Text>
-              </TouchableOpacity>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Invite Friends</Text>
+                <TouchableOpacity onPress={() => setShowInviteModal(false)}>
+                  <Text style={styles.closeModal}>X</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView>
+                {/* Friends List for Invitation */}
+                <Text>Friend selection functionality coming soon!</Text>
+              </ScrollView>
             </View>
           </View>
         </Modal>
@@ -162,85 +171,107 @@ const MyFriendCirclesScreen = ({ navigateTo }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000', // Black background
+    backgroundColor: '#000',
   },
   contentContainer: {
     padding: 20,
   },
   headerText: {
     fontSize: 24,
-    color: '#fff', // White text
+    color: '#fff',
     textAlign: 'center',
     marginBottom: 20,
+    marginTop: 20,
   },
   optionButton: {
-    backgroundColor: '#555', // Gray background
+    backgroundColor: '#AARRGGBB', // Update this to a valid color
     padding: 15,
     borderRadius: 8,
     marginVertical: 10,
+    borderColor: '#fff', // White border for contrast
+    borderWidth: 1,
   },
   optionText: {
     color: '#fff',
     fontSize: 18,
     textAlign: 'center',
   },
-  circlesList: {
-    marginTop: 20,
-  },
-  circleItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 15,
-    backgroundColor: '#333', // Dark gray
-    borderRadius: 8,
-    marginBottom: 10,
-  },
-  circleImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 15,
-  },
-  circleTextContainer: {
-    flex: 1,
-  },
-  circleName: {
-    color: '#fff',
-    fontSize: 18,
-  },
-  circleMembers: {
-    color: '#aaa',
-    fontSize: 14,
-  },
-  modalContainer: {
+  modalOverlay: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    backgroundColor: '#333',
+    backgroundColor: '#fff',
     padding: 20,
     borderRadius: 8,
     width: '80%',
   },
-  input: {
-    backgroundColor: '#444',
-    color: '#fff',
-    padding: 10,
-    borderRadius: 5,
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 10,
   },
+  modalTitle: {
+    fontSize: 24, // Larger text size for "New Friend Circle"
+    fontWeight: 'bold', // Bold text
+    color: '#000',
+  },
+  closeModal: {
+    fontSize: 24, // Larger size for the "X" button
+    color: '#000',
+    fontWeight: 'bold',
+    position: 'absolute',
+    right: 10, // Move to the right corner
+    top: 10, // Move to the top corner
+  },
+  inputWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+  },
+  input: {
+    flex: 1,
+    padding: 10,
+    backgroundColor: '#fff',
+    color: '#000',
+  },
+  penIcon: {
+    width: 20, // Small size for the pen icon
+    height: 20,
+    marginLeft: 10, // Add some spacing between the input and icon
+  },
   modalButton: {
-    backgroundColor: '#007bff',
+    backgroundColor: '#AAARRGGBB', // Update this to a valid color
     padding: 10,
     borderRadius: 5,
     alignItems: 'center',
     marginBottom: 10,
+    borderColor: '#fff',
+    borderWidth: 1,
   },
   modalButtonText: {
     color: '#fff',
     fontSize: 16,
+  },
+  buttonWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  imagesIcon: {
+    width: 20,
+    height: 20,
+    marginLeft: 10,
+  },
+  imageUrlBackground: {
+    width: '100%',
+    height: 120,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

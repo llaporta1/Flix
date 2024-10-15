@@ -125,8 +125,8 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   menuIcon: {
-    width: 32,
-    height: 32,
+    width: 30,
+    height: 30,
     tintColor: '#fff', // Tint the icon to white
   },
   profileButton: {
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 30, // Rounded corners
     elevation: 5,
-    width: 220, // Adjust width as needed
+    width: 250, // Adjust width as needed
   },
   menuHeader: {
     flexDirection: 'row',
@@ -173,20 +173,20 @@ const styles = StyleSheet.create({
   },
   menuItem: {
     flexDirection: 'row', // Align items horizontally
-    alignItems: 'center', // Center align vertically
+    alignItems: 'center', // Align icons and text on the same line
     paddingVertical: 10,
-    paddingHorizontal: 20,
+    paddingHorizontal: 0,
   },
   menuIconItem: {
     width: 20, // Same size for all icons
     height: 20,
-    marginRight: 10, // Spacing between icon and text
+    marginRight: 15, // Spacing between icon and text
     tintColor: '#000', // Set icon color to black
   },
   compositeIconContainer: {
     width: 20, // Set size for the composite icon container
     height: 20,
-    marginRight: 10, // Spacing between icon and text
+    marginRight: 15, // Spacing between icon and text
     position: 'relative', // Relative positioning for overlay
   },
   circleIcon: {

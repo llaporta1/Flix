@@ -20,6 +20,7 @@ import {
   onSnapshot,
   getDoc,
   doc,
+  getDocs,
   updateDoc,
   increment,
 } from 'firebase/firestore';
@@ -152,7 +153,7 @@ const HomeScreen = ({ navigateTo }) => {
       const postDocRef = doc(firestore, 'posts', postId);
       await updateDoc(postDocRef, {
         [`reactions.${reaction}`]: increment(1),
-      });
+      });      
     } catch (error) {
       console.error('Error updating reaction: ', error);
       Alert.alert('Error', 'Failed to update reaction');
@@ -271,9 +272,37 @@ const HomeScreen = ({ navigateTo }) => {
     </View>
   );
 
-  const handleMyFlixPress = () => {
-    navigateTo('MyFlix');
+  const handleMyFlixPress = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        setError('User not authenticated');
+        return;
+      }
+  
+      const now = new Date();
+      const postsRef = collection(firestore, 'posts');
+      const userPostsQuery = query(
+        postsRef,
+        where('userId', '==', user.uid),
+        where('timestamp', '>=', new Date(now - 24 * 60 * 60 * 1000)) // Last 24 hours
+      );
+  
+      const querySnapshot = await getDocs(userPostsQuery);
+      if (!querySnapshot.empty) {
+        // User has a valid post from the last 24 hours, navigate to MyFlixExistingScreen
+        const userPost = querySnapshot.docs[0].data(); // Fetch the first (or latest) post
+        navigateTo('MyFlixExisting', { post: { id: querySnapshot.docs[0].id, ...userPost } });
+      } else {
+        // No valid post, navigate to MyFlixScreen to create a new post
+        navigateTo('MyFlix');
+      }
+    } catch (err) {
+      console.error('Error checking user post validity: ', err);
+      setError('Failed to check user post validity');
+    }
   };
+  
 
   if (loading) {
     return (

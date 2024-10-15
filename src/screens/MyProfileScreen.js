@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
-import { launchImageLibrary } from 'react-native-image-picker';
 import { firestore, auth, storage } from '../../firebase/firebaseConfigs';
 import { getDoc, doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -86,7 +85,6 @@ const MyProfileScreen = ({ navigateTo }) => {
     const handleSaveProfile = async () => {
         try {
             let profileImageUri = selectedImageUri;
-
             if (selectedImageUri && !selectedImageUri.startsWith('https://')) {
                 profileImageUri = await uploadImageToStorage(selectedImageUri);
             }
@@ -95,8 +93,6 @@ const MyProfileScreen = ({ navigateTo }) => {
                 const userDocRef = doc(firestore, 'users', auth.currentUser.uid);
                 await updateDoc(userDocRef, {
                     fullName,
-                    username,
-                    email,
                     profileImageUri,
                 });
 
@@ -111,13 +107,17 @@ const MyProfileScreen = ({ navigateTo }) => {
         }
     };
 
-    const handleEditProfile = () => {
-        setIsEditing(true); // Enable editing mode
+    const handleNameChange = (text) => {
+        setFullName(text);
+        if (text !== '') {
+            setIsEditing(true); // Show save button if the name is being edited
+        } else {
+            setIsEditing(false);
+        }
     };
 
     return (
         <View style={styles.container}>
-            {/* Add the Menu component without the profile image */}
             <Menu navigateTo={navigateTo} showProfileImage={false} />
 
             <View style={styles.imageContainer}>
@@ -131,56 +131,50 @@ const MyProfileScreen = ({ navigateTo }) => {
                 </TouchableOpacity>
             </View>
 
-            <TextInput
-                style={styles.input}
-                placeholder="Full Name"
-                placeholderTextColor="#d3d3d3" // Set placeholder text color to gray
-                value={fullName}
-                onChangeText={(text) => {
-                    setFullName(text);
-                    setIsEditing(true); // Enable editing mode when user types
-                }}
-                editable={isEditing}
-            />
+            {/* Full Name TextBox with Pen Icon */}
+            <View style={styles.nameContainer}>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Full Name"
+                    placeholderTextColor="#d3d3d3"
+                    value={fullName}
+                    onChangeText={handleNameChange}
+                    editable={true}
+                />
+                <TouchableOpacity style={styles.penIconContainer}>
+                    <Image source={require('../../assets/pen.png')} style={styles.penIcon} />
+                </TouchableOpacity>
+            </View>
+
             <TextInput
                 style={styles.input}
                 placeholder="Username"
-                placeholderTextColor="#d3d3d3" // Set placeholder text color to gray
+                placeholderTextColor="#d3d3d3"
                 value={username}
-                onChangeText={(text) => {
-                    setUsername(text);
-                    setIsEditing(true); // Enable editing mode when user types
-                }}
-                editable={isEditing}
+                editable={false} // Disable editing for username
             />
             <TextInput
                 style={styles.input}
                 placeholder="Email"
-                placeholderTextColor="#d3d3d3" // Set placeholder text color to gray
+                placeholderTextColor="#d3d3d3"
                 value={email}
-                onChangeText={(text) => {
-                    setEmail(text);
-                    setIsEditing(true); // Enable editing mode when user types
-                }}
-                editable={isEditing}
-                keyboardType="email-address"
+                editable={false} // Disable editing for email
             />
             <TextInput
                 style={styles.input}
                 placeholder="Password"
-                placeholderTextColor="#d3d3d3" // Set placeholder text color to gray
-                value={password}
-                secureTextEntry
-                editable={false} // Keep password field read-only
+                placeholderTextColor="#d3d3d3"
+                value={password} // Masked password display
+                editable={false} // Disable editing for password
             />
-            <TouchableOpacity
-                onPress={isEditing ? handleSaveProfile : handleEditProfile}
-                style={styles.button}
-            >
-                <Text style={styles.buttonText}>
-                    {isEditing ? 'Save Profile Changes' : 'Edit Profile'}
-                </Text>
-            </TouchableOpacity>
+
+            {/* Save Profile Changes button only appears when name is changed */}
+            {isEditing && (
+                <TouchableOpacity onPress={handleSaveProfile} style={styles.button}>
+                    <Text style={styles.buttonText}>Save Profile Changes</Text>
+                </TouchableOpacity>
+            )}
+
             {error && <Text style={styles.errorText}>{error}</Text>}
         </View>
     );
@@ -190,12 +184,12 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         padding: 20,
-        backgroundColor: '#000', // Black background
+        backgroundColor: '#000',
     },
     imageContainer: {
         alignItems: 'center',
         marginBottom: 20,
-        position: 'relative', // Allows positioning of camera icon within container
+        position: 'relative',
     },
     profileImage: {
         width: 100,
@@ -205,34 +199,47 @@ const styles = StyleSheet.create({
     },
     cameraIconContainer: {
         position: 'absolute',
-        bottom: 0, // Adjusted to move the icon slightly above the bottom of the image
-        right: 105,  // Adjusted to move the icon slightly left from the right edge of the image
-        backgroundColor: '#000', // Black background for the camera icon
+        bottom: 0,
+        right: 105,
+        backgroundColor: '#000',
         borderRadius: 15,
         padding: 2,
     },
     cameraIcon: {
         width: 30,
         height: 30,
-        tintColor: '#fff', // White camera icon
+        tintColor: '#fff',
+    },
+    nameContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 20,
     },
     input: {
-        width: '100%',
+        flex: 1,
         padding: 10,
-        borderColor: '#d3d3d3', // Light gray borders
+        borderColor: '#d3d3d3',
         borderWidth: 1,
         borderRadius: 5,
         marginBottom: 20,
-        color: '#fff', // White text color
+        color: '#fff',
+    },
+    penIconContainer: {
+        padding: 10,
+    },
+    penIcon: {
+        width: 24,
+        height: 24,
+        tintColor: '#fff',
     },
     button: {
-        backgroundColor: '#333', // Darker button background
+        backgroundColor: '#333',
         padding: 10,
         borderRadius: 5,
         alignItems: 'center',
     },
     buttonText: {
-        color: '#fff', // White text color
+        color: '#fff',
         fontSize: 16,
     },
     errorText: {

@@ -1,9 +1,8 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 import { getStorage } from 'firebase/storage';  // Import Firebase Storage
-
-// import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 
 // Your web app's Firebase configuration (iOS key)
 const firebaseConfig = {
@@ -24,11 +23,10 @@ if (!getApps().length) {
 }
 
 // Initialize Firebase Authentication and Firestore
-const auth = initializeAuth(app);
-// console.log(reactNativeAsyncStorage);
-// const auth = initializeAuth(app, {
-//   persistence: getReactNativePersistence(ReactNativeAsyncStorage)
-// });
+const auth = initializeAuth(app, {
+  persistence: getReactNativePersistence(ReactNativeAsyncStorage)
+});
+
 const firestore = getFirestore(app);
 const storage = getStorage(app);
 
