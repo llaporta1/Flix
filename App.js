@@ -20,6 +20,12 @@ import { setDoc, doc, collection, query, where, getDocs } from 'firebase/firesto
 import { ThemeProvider } from './src/contexts/ThemeContext'; // Import ThemeProvider
 import MyCirclesScreen from './src/screens/MyCirclesScreen';
 import CircleDetailsScreen from './src/screens/CircleDetailsScreen';
+import DataStorage from './src/screens/DataStorage';
+import AccountSettings from './src/screens/AccountSettings';
+import Legal from './src/screens/Legal';
+import NotificationSettings from './src/screens/NotificationSettings';
+import PrivacySettings from './src/screens/PrivacySettings';
+import Support from './src/screens/Support';
 
 const App = () => {
   const [currentScreen, setCurrentScreen] = useState('Main');
@@ -141,6 +147,18 @@ const App = () => {
         return <MyFlixScreen navigateTo={navigateTo} />;
       case 'MyFlixExisting':
         return <MyFlixExistingScreen navigateTo={navigateTo} route={{ params: screenParams }} />;
+      case 'NotificationSettings':
+        return <NotificationSettings navigateTo={navigateTo} />;
+      case 'PrivacySettings':
+        return <PrivacySettings navigateTo={navigateTo} />;
+      case 'AccountSettings':
+        return <AccountSettings navigateTo={navigateTo} />;
+      case 'DataStorage':
+        return <DataStorage navigateTo={navigateTo} />;
+      case 'Support':
+        return <Support navigateTo={navigateTo} />;
+      case 'Legal':
+        return <Legal navigateTo={navigateTo} />;  
       default:
         return <MainScreen setCurrentScreen={setCurrentScreen} />; // Ensure you pass the prop here too
     }

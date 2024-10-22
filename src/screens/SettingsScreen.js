@@ -1,50 +1,50 @@
-// src/screens/SettingsScreen.js
 import React from 'react';
-import { SafeAreaView, View, Text, Switch, StyleSheet } from 'react-native';
-import { useTheme } from '../contexts/ThemeContext'; // Import useTheme hook
-import Menu from '../components/Menu';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 
 const SettingsScreen = ({ navigateTo }) => {
-  const { theme, toggleTheme } = useTheme(); // Use theme context
-
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.backgroundColor }]}>
-      <Menu navigateTo={navigateTo} />
-      <View style={styles.contentContainer}>
-        <Text style={[styles.headerText, { color: theme.textColor }]}>Settings</Text>
-        <View style={styles.optionContainer}>
-          <Text style={[styles.optionText, { color: theme.textColor }]}>Dark Mode</Text>
-          <Switch
-            value={theme === darkTheme}
-            onValueChange={toggleTheme}
-          />
-        </View>
-      </View>
-    </SafeAreaView>
+    <ScrollView style={styles.container}>
+      <TouchableOpacity style={styles.settingOption} onPress={() => navigateTo('NotificationSettings')}>
+        <Text style={styles.settingText}>Notification Settings</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.settingOption} onPress={() => navigateTo('PrivacySettings')}>
+        <Text style={styles.settingText}>Privacy Settings</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.settingOption} onPress={() => navigateTo('AccountSettings')}>
+        <Text style={styles.settingText}>Account Settings</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.settingOption} onPress={() => navigateTo('DataStorage')}>
+        <Text style={styles.settingText}>Data & Storage</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.settingOption} onPress={() => navigateTo('Support')}>
+        <Text style={styles.settingText}>Support</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.settingOption} onPress={() => navigateTo('Legal')}>
+        <Text style={styles.settingText}>Legal</Text>
+      </TouchableOpacity>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#fff',
   },
-  contentContainer: {
-    flex: 1,
-    padding: 20,
+  settingOption: {
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderBottomColor: '#ccc',
+    borderBottomWidth: 1,
   },
-  headerText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  optionContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginVertical: 10,
-  },
-  optionText: {
+  settingText: {
     fontSize: 18,
+    color: '#333',
   },
 });
 

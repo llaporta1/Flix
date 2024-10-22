@@ -10,6 +10,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { firestore, auth } from '../../firebase/firebaseConfigs';
 import {
@@ -19,8 +21,9 @@ import {
   onSnapshot,
   doc,
   getDoc,
-  increment,
+  addDoc,
   updateDoc,
+  getDocs,
 } from 'firebase/firestore';
 import Menu from '../components/Menu';
 import addIcon from '../../assets/add.png'; // Add icon for sharing
@@ -34,11 +37,16 @@ const CircleDetailsScreen = ({ route, navigateTo }) => {
   const [userHasValidPost, setUserHasValidPost] = useState(false);
   const [profileImages, setProfileImages] = useState({});
   const [currentImageIndex, setCurrentImageIndex] = useState({});
+  const [friendsList, setFriendsList] = useState([]);
+  const [selectedFriends, setSelectedFriends] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
 
   useEffect(() => {
     if (circleId) {
       fetchCircleDetails();
       fetchCirclePosts();
+      fetchFriendsList();
     }
   }, [circleId]);
 
@@ -64,26 +72,26 @@ const CircleDetailsScreen = ({ route, navigateTo }) => {
             postsRef,
             where('timestamp', '>=', new Date(now - 24 * 60 * 60 * 1000)) // Fetch recent posts
           );
-  
+
           const unsubscribePosts = onSnapshot(postsQuery, async (querySnapshot) => {
             const allPosts = querySnapshot.docs.map((doc) => ({
               id: doc.id,
               ...doc.data(),
             }));
-  
+
             // Filter posts to only include those belonging to the current circle
             const circlePosts = allPosts.filter((post) => post.circleId === circleId);
-  
+
             setPosts(circlePosts);
-  
+
             // Fetch user profile images
             const userIds = new Set(circlePosts.map((post) => post.userId));
             const profileImagePromises = Array.from(userIds).map(fetchUserProfileImage);
             await Promise.all(profileImagePromises);
-  
+
             setLoading(false);
           });
-  
+
           return () => unsubscribePosts();
         }
       });
@@ -93,7 +101,6 @@ const CircleDetailsScreen = ({ route, navigateTo }) => {
       setLoading(false);
     }
   };
-  
 
   const fetchUserProfileImage = async (userId) => {
     try {
@@ -110,67 +117,91 @@ const CircleDetailsScreen = ({ route, navigateTo }) => {
     }
   };
 
-  const renderImages = (images, postId) => {
-    const currentIndex = currentImageIndex[postId] || 0;
+  const fetchFriendsList = async () => {
+    try {
+      const userId = auth.currentUser.uid;
+      const userDocRef = doc(firestore, 'users', userId);
+      const userDoc = await getDoc(userDocRef);
+      const friends = userDoc.data().friends || [];
 
-    if (!images || images.length === 0) return null;
+      const friendsDetails = await Promise.all(
+        friends.map(async (friendId) => {
+          const friendDocRef = doc(firestore, 'users', friendId);
+          const friendDoc = await getDoc(friendDocRef);
+          return {
+            id: friendDoc.id,
+            username: friendDoc.data().username,
+            profileImageUri: friendDoc.data().profileImageUri || '',
+          };
+        })
+      );
 
-    const handleNextImage = () => {
-      setCurrentImageIndex((prevState) => ({
-        ...prevState,
-        [postId]: (currentIndex + 1) % images.length,
-      }));
-    };
-
-    const handlePrevImage = () => {
-      setCurrentImageIndex((prevState) => ({
-        ...prevState,
-        [postId]: (currentIndex - 1 + images.length) % images.length,
-      }));
-    };
-
-    return (
-      <View style={styles.imageContainer}>
-        {images.length > 1 && (
-          <>
-            {currentIndex > 0 && (
-              <TouchableOpacity style={styles.arrowLeft} onPress={handlePrevImage}>
-                <Text style={styles.arrowText}>‹</Text>
-              </TouchableOpacity>
-            )}
-            {currentIndex < images.length - 1 && (
-              <TouchableOpacity style={styles.arrowRight} onPress={handleNextImage}>
-                <Text style={styles.arrowText}>›</Text>
-              </TouchableOpacity>
-            )}
-          </>
-        )}
-        <Image
-          source={{ uri: images[currentIndex] }}
-          style={styles.postImage}
-          resizeMode="cover"
-        />
-      </View>
-    );
+      setFriendsList(friendsDetails);
+    } catch (error) {
+      console.error('Error fetching friends:', error);
+    }
   };
 
-  const renderItem = ({ item }) => (
-    <View style={styles.postContainer}>
-      <View style={styles.userInfo}>
+  const sendCircleInvite = async (friendId) => {
+    try {
+      const senderId = auth.currentUser.uid;
+
+      const circleInvitesRef = collection(firestore, 'circleInvites');
+      await addDoc(circleInvitesRef, {
+        senderId,
+        receiverId: friendId,
+        circleId,
+        status: 'pending',
+        timestamp: Date.now(),
+      });
+
+      Alert.alert('Circle invite sent!', `An invite has been sent to your friend.`);
+    } catch (error) {
+      console.error('Error sending circle invite: ', error);
+      Alert.alert('Error', 'Failed to send circle invite.');
+    }
+  };
+
+  const handleSelectFriend = (friendId, username) => {
+    if (!selectedFriends.includes(friendId)) {
+      setSelectedFriends([...selectedFriends, friendId]);
+      sendCircleInvite(friendId); // Send the invite immediately after selection
+    } else {
+      Alert.alert(`${username} has already been invited.`);
+    }
+  };
+
+  const handleSearchFriends = () => {
+    if (searchQuery) {
+      const results = friendsList.filter((friend) =>
+        friend.username.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setSearchResults(results);
+    } else {
+      setSearchResults([]);
+    }
+  };
+
+  const renderFriendItem = ({ item }) => {
+    const isSelected = selectedFriends.includes(item.id);
+    return (
+      <TouchableOpacity
+        style={[styles.friendItem, isSelected && styles.selectedFriend]}
+        onPress={() => handleSelectFriend(item.id, item.username)}
+      >
         <Image
           source={
-            profileImages[item.userId]
-              ? { uri: profileImages[item.userId] }
+            item.profileImageUri
+              ? { uri: item.profileImageUri }
               : require('../../assets/profile-placeholder.png')
           }
-          style={styles.profileImage}
+          style={styles.friendProfileImage}
         />
-        <Text style={styles.username}>{item.username || 'Unknown User'}</Text>
-      </View>
-      {renderImages(item.imageUris || [item.imageUri], item.id)}
-      {item.caption ? <Text style={styles.caption}>{item.caption}</Text> : null}
-    </View>
-  );
+        <Text style={styles.friendUsername}>{item.username}</Text>
+        {isSelected && <Text style={styles.invitedText}>Invited</Text>}
+      </TouchableOpacity>
+    );
+  };
 
   if (loading || !circleDetails) {
     return (
@@ -219,6 +250,24 @@ const CircleDetailsScreen = ({ route, navigateTo }) => {
           <Text style={styles.moreMembersText}>+ {members.length - 7} others</Text>
         )}
       </ScrollView>
+
+      {/* Search and Invite Section */}
+      <View style={styles.inviteSection}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search for friends to invite..."
+          placeholderTextColor="#aaa"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          onSubmitEditing={handleSearchFriends}
+        />
+        <FlatList
+          data={searchResults.length > 0 ? searchResults : friendsList}
+          keyExtractor={(item) => item.id}
+          renderItem={renderFriendItem}
+          contentContainerStyle={styles.friendsList}
+        />
+      </View>
 
       {/* Posts Section */}
       {!userHasValidPost ? (
@@ -292,6 +341,48 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 10,
   },
+  inviteSection: {
+    padding: 10,
+    backgroundColor: '#222',
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  searchInput: {
+    backgroundColor: '#333',
+    borderRadius: 8,
+    color: '#fff',
+    padding: 10,
+    marginBottom: 10,
+  },
+  friendsList: {
+    paddingBottom: 50,
+  },
+  friendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 10,
+    padding: 10,
+    backgroundColor: '#333',
+    borderRadius: 8,
+  },
+  friendProfileImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
+  },
+  friendUsername: {
+    color: '#fff',
+    fontSize: 16,
+  },
+  invitedText: {
+    color: '#00f',
+    fontSize: 14,
+    marginLeft: 10,
+  },
+  selectedFriend: {
+    backgroundColor: '#444',
+  },
   noPostContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -338,11 +429,6 @@ const styles = StyleSheet.create({
     width: width - 32,
     height: width * 0.8,
     borderRadius: 10,
-  },
-  caption: {
-    fontSize: 14,
-    color: '#fff',
-    marginBottom: 10,
   },
   noPostsText: {
     fontSize: 16,

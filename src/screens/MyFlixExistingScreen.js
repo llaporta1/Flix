@@ -4,30 +4,35 @@ import { firestore, auth } from '../../firebase/firebaseConfigs';
 import { doc, deleteDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
 const MyFlixExistingScreen = ({ route, navigateTo }) => {
-  const { post } = route.params;
-  const now = new Date();
-  const postTime = post.timestamp.toDate();
-  const timeDifference = (now - postTime) / (1000 * 60 * 60); // Difference in hours
-  const hoursLeft = 24 - timeDifference;
-
   const [comments, setComments] = useState([]);
   const [reactions, setReactions] = useState({});
+  const post = route?.params?.post;
 
   useEffect(() => {
-    fetchPostDetails();
-  }, []);
+    if (post) {
+      fetchPostDetails();
+    }
+  }, [post]);
 
   const fetchPostDetails = async () => {
     try {
+      // Fetch comments for the post
       const commentsQuery = query(collection(firestore, 'comments'), where('postId', '==', post.id));
       const commentsSnapshot = await getDocs(commentsQuery);
       const fetchedComments = commentsSnapshot.docs.map((doc) => doc.data());
       setComments(fetchedComments);
 
+      // Fetch reactions for the post
       const reactionsQuery = query(collection(firestore, 'reactions'), where('postId', '==', post.id));
       const reactionsSnapshot = await getDocs(reactionsQuery);
       const fetchedReactions = reactionsSnapshot.docs.map((doc) => doc.data());
-      setReactions(fetchedReactions);
+
+      // Process fetched reactions into a format for display
+      const reactionCount = {};
+      fetchedReactions.forEach((reaction) => {
+        reactionCount[reaction.reaction] = (reactionCount[reaction.reaction] || 0) + 1;
+      });
+      setReactions(reactionCount);
     } catch (error) {
       console.error('Error fetching post details: ', error);
     }
@@ -74,38 +79,47 @@ const MyFlixExistingScreen = ({ route, navigateTo }) => {
     </View>
   );
 
+  const now = new Date();
+  const postTime = post?.timestamp?.toDate();
+  const timeDifference = postTime ? (now - postTime) / (1000 * 60 * 60) : 0; // Difference in hours
+  const hoursLeft = 24 - timeDifference;
+
   return (
     <SafeAreaView style={styles.container}>
       <TouchableOpacity style={styles.closeButton} onPress={() => navigateTo('Home')}>
         <Text style={styles.closeButtonText}>X</Text>
       </TouchableOpacity>
 
-      <View style={styles.inner}>
-        <Text style={styles.text}>MY FLIX</Text>
-        <Image source={{ uri: post.imageUri }} style={styles.postImage} />
-        <Text style={styles.postCaption}>{post.caption}</Text>
-        <Text style={styles.timeLeftText}>
-          You can post again in {hoursLeft.toFixed(1)} hours
-        </Text>
+      {post ? (
+        <View style={styles.inner}>
+          <Text style={styles.text}>MY FLIX</Text>
+          <Image source={{ uri: post.imageUri }} style={styles.postImage} />
+          <Text style={styles.postCaption}>{post.caption}</Text>
+          <Text style={styles.timeLeftText}>
+            You can post again in {hoursLeft.toFixed(1)} hours
+          </Text>
 
-        {/* Show reactions */}
-        <Text style={styles.subheading}>Reactions:</Text>
-        {renderReactions()}
+          {/* Show reactions */}
+          <Text style={styles.subheading}>Reactions:</Text>
+          {renderReactions()}
 
-        {/* Show comments */}
-        <Text style={styles.subheading}>Comments:</Text>
-        <FlatList
-          data={comments}
-          renderItem={renderCommentItem}
-          keyExtractor={(item, index) => index.toString()}
-          style={styles.commentsList}
-        />
+          {/* Show comments */}
+          <Text style={styles.subheading}>Comments:</Text>
+          <FlatList
+            data={comments}
+            renderItem={renderCommentItem}
+            keyExtractor={(item, index) => index.toString()}
+            style={styles.commentsList}
+          />
 
-        {/* Delete Post Button */}
-        <TouchableOpacity style={styles.deleteButton} onPress={handleDeletePost}>
-          <Text style={styles.deleteButtonText}>Delete Post</Text>
-        </TouchableOpacity>
-      </View>
+          {/* Delete Post Button */}
+          <TouchableOpacity style={styles.deleteButton} onPress={handleDeletePost}>
+            <Text style={styles.deleteButtonText}>Delete Post</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <Text style={styles.errorText}>No post found.</Text>
+      )}
     </SafeAreaView>
   );
 };
@@ -192,6 +206,10 @@ const styles = StyleSheet.create({
   deleteButtonText: {
     color: '#fff',
     fontSize: 16,
+  },
+  errorText: {
+    fontSize: 18,
+    color: 'red',
   },
 });
 
