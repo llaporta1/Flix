@@ -95,7 +95,7 @@ const Menu = ({ navigateTo, showProfileImage = true }) => {
             <Image source={require('../../assets/settings.png')} style={styles.menuIconItem} />
             <Text style={styles.menuText}>Settings</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem} onPress={() => handleMenuSelection('Login')}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigateTo('Login')}>
             <Image source={require('../../assets/logout.png')} style={styles.menuIconItem} />
             <Text style={styles.menuText}>Logout</Text>
           </TouchableOpacity>

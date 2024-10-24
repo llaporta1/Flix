@@ -1,4 +1,3 @@
-// App.js
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { Alert } from 'react-native';
@@ -17,7 +16,7 @@ import MyFlixExistingScreen from './src/screens/MyFlixExistingScreen';
 import { auth, firestore } from './firebase/firebaseConfigs';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { setDoc, doc, collection, query, where, getDocs } from 'firebase/firestore';
-import { ThemeProvider } from './src/contexts/ThemeContext'; // Import ThemeProvider
+import { ThemeProvider } from './src/contexts/ThemeContext';
 import MyCirclesScreen from './src/screens/MyCirclesScreen';
 import CircleDetailsScreen from './src/screens/CircleDetailsScreen';
 import DataStorage from './src/screens/DataStorage';
@@ -26,6 +25,7 @@ import Legal from './src/screens/Legal';
 import NotificationSettings from './src/screens/NotificationSettings';
 import PrivacySettings from './src/screens/PrivacySettings';
 import Support from './src/screens/Support';
+import MyCirclesFeed from './src/screens/MyCirclesFeed';
 
 const App = () => {
   const [currentScreen, setCurrentScreen] = useState('Main');
@@ -36,7 +36,6 @@ const App = () => {
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
   const [registerUsername, setRegisterUsername] = useState('');
-  
 
   useEffect(() => {
     if (currentScreen === 'Main') {
@@ -78,7 +77,7 @@ const App = () => {
         username: registerUsername,
         email: user.email,
         friends: [],
-        profilePicUri: ""
+        profilePicUri: ''
       });
       Alert.alert('Registration successful', `Welcome, ${user.email}`);
       setCurrentScreen('Home');
@@ -95,7 +94,7 @@ const App = () => {
   const renderScreen = () => {
     switch (currentScreen) {
       case 'Main':
-        return <MainScreen setCurrentScreen={setCurrentScreen} />; // Pass the prop here
+        return <MainScreen setCurrentScreen={setCurrentScreen} />;
       case 'Login':
         return (
           <LoginScreen
@@ -122,9 +121,6 @@ const App = () => {
             setCurrentScreen={setCurrentScreen}
           />
         );
-      case 'Home':
-        return <HomeScreen navigateTo={navigateTo} />;
-      // Other cases remain the same
       case 'Home':
         return <HomeScreen navigateTo={navigateTo} />;
       case 'MyFriends':
@@ -158,9 +154,11 @@ const App = () => {
       case 'Support':
         return <Support navigateTo={navigateTo} />;
       case 'Legal':
-        return <Legal navigateTo={navigateTo} />;  
+        return <Legal navigateTo={navigateTo} />;
+      case 'MyCirclesFeed':
+        return <MyCirclesFeed navigateTo={navigateTo} />;
       default:
-        return <MainScreen setCurrentScreen={setCurrentScreen} />; // Ensure you pass the prop here too
+        return <MainScreen setCurrentScreen={setCurrentScreen} />;
     }
   };
 

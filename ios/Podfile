@@ -14,6 +14,9 @@ if linkage != nil
   use_frameworks! :linkage => linkage.to_sym
 end
 
+# Globally enable modular headers for compatibility with Firebase and GoogleUtilities
+use_modular_headers!
+
 target 'ImagePickerTestApp' do
   config = use_native_modules!
 

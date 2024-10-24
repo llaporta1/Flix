@@ -9,7 +9,6 @@ import {
   Dimensions,
   TouchableOpacity,
   Alert,
-  ScrollView,
   ActivityIndicator,
 } from 'react-native';
 import { firestore, auth } from '../../firebase/firebaseConfigs';
@@ -21,11 +20,11 @@ import {
   getDoc,
   doc,
   getDocs,
-  updateDoc,
-  increment,
+  addDoc,
 } from 'firebase/firestore';
 import Menu from '../components/Menu';
-import addIcon from '../../assets/add.png'; // Import the add.png icon
+import NavigationBar from '../components/NavigationBar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const HomeScreen = ({ navigateTo }) => {
   const [posts, setPosts] = useState([]);
@@ -37,12 +36,23 @@ const HomeScreen = ({ navigateTo }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState({});
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
         checkUserPostValidity(user);
       } else {
-        setError('User not authenticated');
-        setLoading(false);
+        const rememberedUserId = await AsyncStorage.getItem('userId');
+        if (rememberedUserId) {
+          const userDoc = await getDoc(doc(firestore, 'users', rememberedUserId));
+          if (userDoc.exists()) {
+            checkUserPostValidity({ uid: rememberedUserId });
+          } else {
+            setError('User not authenticated');
+            setLoading(false);
+          }
+        } else {
+          setError('User not authenticated');
+          setLoading(false);
+        }
       }
     });
 
@@ -91,7 +101,8 @@ const HomeScreen = ({ navigateTo }) => {
         const postsQuery = query(
           postsRef,
           where('userId', 'in', allUserIds),
-          where('timestamp', '>=', new Date(now - 24 * 60 * 60 * 1000))
+          where('timestamp', '>=', new Date(now - 24 * 60 * 60 * 1000)),
+          where('visibilityId', 'array-contains', 'everyone')
         );
 
         const unsubscribe = onSnapshot(postsQuery, async (querySnapshot) => {
@@ -102,8 +113,31 @@ const HomeScreen = ({ navigateTo }) => {
 
           setPosts(postsData);
 
+          // Fetch profile images and reactions for each post
           const userIds = new Set(postsData.map((post) => post.userId));
           const profileImagePromises = Array.from(userIds).map(fetchUserProfileImage);
+
+          const reactionPromises = postsData.map(async (post) => {
+            const reactionsQuery = collection(firestore, `posts/${post.id}/reactions`);
+            const reactionsSnapshot = await getDocs(reactionsQuery);
+
+            const reactionCount = {};
+            reactionsSnapshot.forEach((doc) => {
+              const reaction = doc.data().reaction;
+              reactionCount[reaction] = (reactionCount[reaction] || 0) + 1;
+            });
+
+            return { postId: post.id, reactions: reactionCount };
+          });
+
+          const reactionData = await Promise.all(reactionPromises);
+
+          const reactionMap = reactionData.reduce((acc, curr) => {
+            acc[curr.postId] = curr.reactions;
+            return acc;
+          }, {});
+
+          setReactions(reactionMap);
           await Promise.all(profileImagePromises);
 
           setLoading(false);
@@ -138,27 +172,29 @@ const HomeScreen = ({ navigateTo }) => {
 
   const handleReaction = async (postId, reaction) => {
     try {
-      setReactions((prevReactions) => {
-        const postReactions = prevReactions[postId] || {};
-        const currentCount = postReactions[reaction] || 0;
-        return {
-          ...prevReactions,
-          [postId]: {
-            ...postReactions,
-            [reaction]: currentCount + 1,
-          },
-        };
+      const user = auth.currentUser;
+      if (!user) {
+        Alert.alert('Error', 'User not authenticated');
+        return;
+      }
+  
+      // Create a reference to the reactions subcollection for the specific post
+      const reactionRef = collection(firestore, `posts/${postId}/reactions`);
+  
+      // Add a new reaction document to the reactions subcollection with userId and reaction fields
+      await addDoc(reactionRef, {
+        userId: user.uid,     // Reactor's userId
+        reaction: reaction.trim(),  // Reaction emoji or message
+        timestamp: new Date(),  // Timestamp when the reaction was added
       });
-
-      const postDocRef = doc(firestore, 'posts', postId);
-      await updateDoc(postDocRef, {
-        [`reactions.${reaction}`]: increment(1),
-      });      
+  
+      Alert.alert('Success', 'Reaction added!');
     } catch (error) {
-      console.error('Error updating reaction: ', error);
-      Alert.alert('Error', 'Failed to update reaction');
+      console.error('Error adding reaction: ', error);
+      Alert.alert('Error', 'Failed to add reaction');
     }
   };
+  
 
   const handleAddReaction = (postId) => {
     Alert.prompt(
@@ -279,15 +315,15 @@ const HomeScreen = ({ navigateTo }) => {
         setError('User not authenticated');
         return;
       }
-  
+
       const now = new Date();
       const postsRef = collection(firestore, 'posts');
       const userPostsQuery = query(
         postsRef,
         where('userId', '==', user.uid),
-        where('timestamp', '>=', new Date(now - 24 * 60 * 60 * 1000)) // Last 24 hours
+        where('timestamp', '>=', new Date(now - 24 * 60 * 60 * 1000))
       );
-  
+
       const querySnapshot = await getDocs(userPostsQuery);
       if (!querySnapshot.empty) {
         // User has a valid post from the last 24 hours, navigate to MyFlixExistingScreen
@@ -302,7 +338,6 @@ const HomeScreen = ({ navigateTo }) => {
       setError('Failed to check user post validity');
     }
   };
-  
 
   if (loading) {
     return (
@@ -339,19 +374,11 @@ const HomeScreen = ({ navigateTo }) => {
           />
         ) : (
           <Text style={styles.noPostsText}>
-            No posts available. Encourage your friends to share!
+            No posts available. Share your flix to your friends!
           </Text>
         )}
-        <TouchableOpacity
-          style={styles.myFlixButton}
-          onPress={handleMyFlixPress}
-        >
-          <Image
-            source={addIcon} // Updated to use the add.png icon
-            style={styles.myFlixIcon} // Apply full size
-          />
-        </TouchableOpacity>
       </View>
+      <NavigationBar navigateTo={navigateTo} />
     </SafeAreaView>
   );
 };
@@ -373,6 +400,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
     paddingTop: 10,
+    paddingBottom: 80,
   },
   headerText: {
     fontSize: 24,
@@ -499,23 +527,20 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   noPostsText: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#fff',
     textAlign: 'center',
-    marginTop: 50,
+    marginTop: 250
   },
   myFlixButton: {
     position: 'absolute',
-    bottom: 30,
+    bottom: 90,
     right: 20,
-    backgroundColor: '#fff',
-    borderRadius: 30,
-    padding: 15,
     elevation: 5,
   },
   myFlixIcon: {
-    width: 50,  // Adjusted to fit the entire circle button
-    height: 50, // Adjusted to fit the entire circle button
+    width: 60,
+    height: 60,
   },
 });
 

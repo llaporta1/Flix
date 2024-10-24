@@ -1,29 +1,48 @@
 import React, { useState, useEffect } from 'react';
-import { SafeAreaView, View, Text, StyleSheet, Image, Dimensions, TouchableOpacity, Alert, FlatList } from 'react-native';
+import {
+  SafeAreaView,
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  Dimensions,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import { firestore, auth } from '../../firebase/firebaseConfigs';
-import { doc, deleteDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, deleteDoc, collection, getDoc, getDocs } from 'firebase/firestore';
 
 const MyFlixExistingScreen = ({ route, navigateTo }) => {
   const [comments, setComments] = useState([]);
   const [reactions, setReactions] = useState({});
+  const [profileImages, setProfileImages] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const post = route?.params?.post;
 
   useEffect(() => {
     if (post) {
-      fetchPostDetails();
+      fetchPostDetails(post.userId);
     }
   }, [post]);
 
-  const fetchPostDetails = async () => {
+  const fetchPostDetails = async (userId) => {
     try {
+      const user = auth.currentUser;
+      if (!user) {
+        Alert.alert('Error', 'User not authenticated');
+        return;
+      }
+
       // Fetch comments for the post
-      const commentsQuery = query(collection(firestore, 'comments'), where('postId', '==', post.id));
+      const commentsQuery = collection(firestore, `posts/${post.id}/comments`);
       const commentsSnapshot = await getDocs(commentsQuery);
       const fetchedComments = commentsSnapshot.docs.map((doc) => doc.data());
       setComments(fetchedComments);
 
-      // Fetch reactions for the post
-      const reactionsQuery = query(collection(firestore, 'reactions'), where('postId', '==', post.id));
+      // Fetch reactions from the 'reactions' subcollection of the post
+      const reactionsQuery = collection(firestore, `posts/${post.id}/reactions`);
       const reactionsSnapshot = await getDocs(reactionsQuery);
       const fetchedReactions = reactionsSnapshot.docs.map((doc) => doc.data());
 
@@ -33,8 +52,29 @@ const MyFlixExistingScreen = ({ route, navigateTo }) => {
         reactionCount[reaction.reaction] = (reactionCount[reaction.reaction] || 0) + 1;
       });
       setReactions(reactionCount);
+
+      // Fetch user profile image
+      fetchUserProfileImage(userId);
+
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching post details: ', error);
+      setLoading(false);
+    }
+  };
+
+  const fetchUserProfileImage = async (userId) => {
+    try {
+      const userDoc = await getDoc(doc(firestore, 'users', userId));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setProfileImages((prevState) => ({
+          ...prevState,
+          [userId]: userData.profileImageUri || null,
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching user profile image: ', error);
     }
   };
 
@@ -62,57 +102,87 @@ const MyFlixExistingScreen = ({ route, navigateTo }) => {
     );
   };
 
-  const renderCommentItem = ({ item }) => (
-    <View style={styles.commentContainer}>
-      <Text style={styles.commentUsername}>{item.username}</Text>
-      <Text style={styles.commentText}>{item.comment}</Text>
-    </View>
-  );
+  const renderImages = (images) => {
+    const handleNextImage = () => {
+      setCurrentImageIndex((currentImageIndex + 1) % images.length);
+    };
 
-  const renderReactions = () => (
-    <View style={styles.reactionsContainer}>
-      {Object.entries(reactions).map(([reaction, count]) => (
-        <Text key={reaction} style={styles.reactionText}>
-          {reaction}: {count}
-        </Text>
-      ))}
-    </View>
-  );
+    const handlePrevImage = () => {
+      setCurrentImageIndex(
+        (currentImageIndex - 1 + images.length) % images.length
+      );
+    };
+
+    return (
+      <View style={styles.imageContainer}>
+        {images.length > 1 && (
+          <>
+            {currentImageIndex > 0 && (
+              <TouchableOpacity style={styles.arrowLeft} onPress={handlePrevImage}>
+                <Text style={styles.arrowText}>‹</Text>
+              </TouchableOpacity>
+            )}
+            {currentImageIndex < images.length - 1 && (
+              <TouchableOpacity style={styles.arrowRight} onPress={handleNextImage}>
+                <Text style={styles.arrowText}>›</Text>
+              </TouchableOpacity>
+            )}
+          </>
+        )}
+        <Image
+          source={{ uri: images[currentImageIndex] }}
+          style={styles.postImage}
+          resizeMode="cover"
+        />
+      </View>
+    );
+  };
 
   const now = new Date();
   const postTime = post?.timestamp?.toDate();
   const timeDifference = postTime ? (now - postTime) / (1000 * 60 * 60) : 0; // Difference in hours
   const hoursLeft = 24 - timeDifference;
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#fff" />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
-      <TouchableOpacity style={styles.closeButton} onPress={() => navigateTo('Home')}>
+      <TouchableOpacity
+        style={styles.closeButton}
+        onPress={() => navigateTo('Home')}
+        activeOpacity={0.7}
+      >
         <Text style={styles.closeButtonText}>X</Text>
       </TouchableOpacity>
 
       {post ? (
         <View style={styles.inner}>
-          <Text style={styles.text}>MY FLIX</Text>
-          <Image source={{ uri: post.imageUri }} style={styles.postImage} />
-          <Text style={styles.postCaption}>{post.caption}</Text>
+          {renderImages(post.imageUris || [post.imageUri])}
+
+          {/* Container with profile image, username, and caption, aligned to the left */}
+          <View style={styles.userInfoRow}>
+            <Image
+              source={
+                profileImages[post.userId]
+                  ? { uri: profileImages[post.userId] } // Load the actual profile image
+                  : require('../../assets/profile-placeholder.png') // Fallback to placeholder
+              }
+              style={styles.profileImage}
+            />
+            <Text style={styles.username}>{post.username || 'Unknown User'}</Text>
+            {post.caption ? <Text style={styles.caption}>{post.caption}</Text> : null}
+          </View>
+
           <Text style={styles.timeLeftText}>
             You can post again in {hoursLeft.toFixed(1)} hours
           </Text>
 
-          {/* Show reactions */}
-          <Text style={styles.subheading}>Reactions:</Text>
-          {renderReactions()}
-
-          {/* Show comments */}
-          <Text style={styles.subheading}>Comments:</Text>
-          <FlatList
-            data={comments}
-            renderItem={renderCommentItem}
-            keyExtractor={(item, index) => index.toString()}
-            style={styles.commentsList}
-          />
-
-          {/* Delete Post Button */}
           <TouchableOpacity style={styles.deleteButton} onPress={handleDeletePost}>
             <Text style={styles.deleteButtonText}>Delete Post</Text>
           </TouchableOpacity>
@@ -129,76 +199,91 @@ const { width } = Dimensions.get('window');
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#000',
     justifyContent: 'center',
     alignItems: 'center',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000',
+  },
   closeButton: {
     position: 'absolute',
-    top: 10,
-    right: 10,
+    top: 20,
+    right: 20,
     padding: 10,
+    zIndex: 2,
   },
   closeButtonText: {
     fontSize: 20,
     fontWeight: 'bold',
+    color: '#fff',
   },
   inner: {
     alignItems: 'center',
+    paddingTop: 40,
   },
-  text: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    marginTop: 20,
+  userInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  profileImage: {
+    width: 30,
+    height: 30,
+    borderRadius: 20,
+    marginRight: 10,
+    backgroundColor: '#ccc',
+  },
+  username: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginRight: 10,
   },
   postImage: {
-    width: width * 0.8,
+    width: width - 32,
     height: width * 0.8,
-    marginBottom: 20,
+    borderRadius: 10,
   },
-  postCaption: {
-    fontSize: 18,
-    marginBottom: 10,
+  caption: {
+    fontSize: 14,
+    color: '#fff',
+    flexShrink: 1,
   },
   timeLeftText: {
     fontSize: 16,
     color: 'red',
     marginBottom: 20,
   },
-  subheading: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginTop: 10,
-  },
-  reactionsContainer: {
-    marginVertical: 10,
-    alignItems: 'center',
-  },
-  reactionText: {
-    fontSize: 16,
-  },
-  commentsList: {
-    width: '90%',
-    maxHeight: 150,
-    marginTop: 10,
-  },
-  commentContainer: {
-    backgroundColor: '#f0f0f0',
+  arrowLeft: {
+    position: 'absolute',
+    left: 10,
+    top: '50%',
+    transform: [{ translateY: -15 }],
+    zIndex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    borderRadius: 20,
     padding: 10,
-    borderRadius: 5,
-    marginVertical: 5,
   },
-  commentUsername: {
-    fontWeight: 'bold',
-  },
-  commentText: {
-    marginTop: 2,
+  arrowRight: {
+    position: 'absolute',
+    right: 10,
+    top: '50%',
+    transform: [{ translateY: -15 }],
+    zIndex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    borderRadius: 20,
+    padding: 10,
   },
   deleteButton: {
     backgroundColor: '#ff4d4d',
-    paddingVertical: 10,
-    paddingHorizontal: 0,
+    paddingVertical: 15,
+    paddingHorizontal: 40,
     borderRadius: 30,
     marginTop: 20,
     marginBottom: 20,

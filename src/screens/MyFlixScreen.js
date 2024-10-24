@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { firestore, auth } from '../../firebase/firebaseConfigs';
-import { getDoc, doc, collection, addDoc, getDocs, query, where } from 'firebase/firestore';
+import { getDoc, doc, setDoc, collection, addDoc, getDocs, query, where } from 'firebase/firestore';
 
 const MyFlixScreen = ({ navigateTo }) => {
   const [caption, setCaption] = useState('');
@@ -21,9 +21,11 @@ const MyFlixScreen = ({ navigateTo }) => {
   const [selectedImages, setSelectedImages] = useState([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0); // Track the current image index
   const [friendCircles, setFriendCircles] = useState([]); // To store friend circles
-  const [visibilityOption, setVisibilityOption] = useState('everyone'); // Default visibility option
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false); // Dropdown visibility toggle
+  const [selectedCircles, setSelectedCircles] = useState([]); // Selected friend circles
+  const [isDropdownVisible, setIsDropdownVisible] = useState(false); // Dropdown visibility
   const captionInputRef = useRef(null); // Reference for the caption input
+  const [profileImageUri, setProfileImageUri] = useState('');  // Store user's profile image URI
+
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -71,18 +73,42 @@ const MyFlixScreen = ({ navigateTo }) => {
     try {
       const user = auth.currentUser;
       if (user) {
+        // Determine the visibility array
+        const visibilityId = selectedCircles.length === 0 || selectedCircles.includes('everyone')
+          ? ['everyone']
+          : selectedCircles;
+
         const newPost = {
           userId: user.uid,
           username: username,
-          imageUris: selectedImages, // Save array of image URIs
+          imageUris: selectedImages,
           caption: caption,
           timestamp: new Date(),
-          visibilityId: visibilityOption, // Save the selected visibility option
+          visibilityId: visibilityId, // Array of friend circle IDs or 'everyone'
         };
 
-        await addDoc(collection(firestore, 'posts'), newPost);
+        // Add the post to the global 'posts' collection and get the generated post ID
+        const globalPostRef = await addDoc(collection(firestore, 'posts'), newPost);
+        const postId = globalPostRef.id; // This is the unique ID for the post
+
+        if (selectedCircles.length !== 0 && !selectedCircles.includes('everyone')) {
+          // Post to each selected friend circle's subcollection of posts
+          await Promise.all(
+            selectedCircles.map(async (circleId) => {
+              // Use the same postId for posts in friendCircles/{circleId}/posts
+              await setDoc(doc(firestore, `friendCircles/${circleId}/posts`, postId), newPost);
+            })
+          );
+        }
+
+        // Initialize an empty reactions subcollection for the post
+        const reactionsRef = collection(firestore, `posts/${postId}/reactions`);
+        await addDoc(reactionsRef, {}); // Empty document just to initialize the collection
+
+        // Reset form after post creation
         setCaption('');
         setSelectedImages([]);
+        setSelectedCircles([]);
         setError(null);
         Alert.alert('Success', 'Post created successfully!');
       } else {
@@ -94,12 +120,38 @@ const MyFlixScreen = ({ navigateTo }) => {
     }
   };
 
+  // Function to add a reaction to a post's reactions subcollection
+  const handleAddReaction = async (postId, reaction) => {
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        Alert.alert('Error', 'User not authenticated');
+        return;
+      }
+
+      // Reference to the reactions subcollection of the specific post
+      const reactionRef = doc(collection(firestore, `posts/${postId}/reactions`));
+
+      // Add the reaction document with userId and the reaction content
+      await setDoc(reactionRef, {
+        userId: user.uid,
+        reaction: reaction,
+        timestamp: new Date(),
+      });
+
+      Alert.alert('Success', 'Reaction added!');
+    } catch (error) {
+      console.error('Error adding reaction: ', error);
+      Alert.alert('Error', 'Failed to add reaction');
+    }
+  };
+
   const selectImages = async () => {
     try {
       const response = await launchImageLibrary({
         mediaType: 'photo',
         includeBase64: false,
-        selectionLimit: 10, // Allow selecting up to 10 images
+        selectionLimit: 10,
       });
 
       if (response.didCancel) {
@@ -123,34 +175,54 @@ const MyFlixScreen = ({ navigateTo }) => {
     }
   };
 
+  // Toggle dropdown visibility
   const toggleDropdown = () => {
-    setIsDropdownOpen(!isDropdownOpen);
+    setIsDropdownVisible(!isDropdownVisible);
   };
 
-  const handleVisibilitySelect = (option) => {
-    setVisibilityOption(option);
-    setIsDropdownOpen(false); // Close dropdown after selection
+  // Handle selecting/deselecting "Everyone" or specific friend circles
+  const toggleSelectCircle = (circleId) => {
+    if (circleId === 'everyone') {
+      // Deselect all circles if "Everyone" is selected
+      if (selectedCircles.includes('everyone')) {
+        setSelectedCircles([]); // Unselect "Everyone" if already selected
+      } else {
+        setSelectedCircles(['everyone']); // Select "Everyone" and clear other selections
+      }
+    } else {
+      if (selectedCircles.includes('everyone')) {
+        setSelectedCircles([]); // Unselect "Everyone" first
+      }
+      if (selectedCircles.includes(circleId)) {
+        setSelectedCircles((prev) => prev.filter((id) => id !== circleId)); // Unselect circle
+      } else {
+        setSelectedCircles((prev) => [...prev, circleId]); // Select circle
+      }
+    }
   };
 
-  // Function to handle next image
+  // Function to handle moving to the next image
   const handleNextImage = () => {
-    setCurrentImageIndex((prevIndex) => (prevIndex + 1) % selectedImages.length);
+    if (currentImageIndex < selectedImages.length - 1) {
+      setCurrentImageIndex(currentImageIndex + 1);
+    }
   };
 
-  // Function to handle previous image
+  // Function to handle moving to the previous image
   const handlePrevImage = () => {
-    setCurrentImageIndex((prevIndex) => (prevIndex - 1 + selectedImages.length) % selectedImages.length);
+    if (currentImageIndex > 0) {
+      setCurrentImageIndex(currentImageIndex - 1);
+    }
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView contentContainerStyle={styles.container}>
       <TouchableOpacity style={styles.closeButton} onPress={() => navigateTo('Home')}>
         <Text style={styles.closeButtonText}>X</Text>
       </TouchableOpacity>
 
       <Text style={styles.title}>My Flix</Text>
 
-      {/* Caption input with clickable pen icon inside */}
       <View style={styles.captionContainer}>
         <TextInput
           style={styles.input}
@@ -158,54 +230,65 @@ const MyFlixScreen = ({ navigateTo }) => {
           placeholderTextColor="#888"
           value={caption}
           onChangeText={setCaption}
-          ref={captionInputRef} // Attach reference to caption input
+          ref={captionInputRef}
         />
         <TouchableOpacity onPress={handlePenPress}>
           <Image source={require('../../assets/pen.png')} style={styles.iconInsideTextBox} />
         </TouchableOpacity>
       </View>
 
-      {/* Select Images button with larger, thicker image icon */}
       <TouchableOpacity onPress={selectImages} style={styles.button}>
         <Text style={styles.buttonText}>Select Images</Text>
         <Image source={require('../../assets/image.png')} style={styles.largeImageIcon} />
       </TouchableOpacity>
 
-      {/* Add the visibility dropdown */}
-      <TouchableOpacity style={styles.visibilityDropdownContainer} onPress={toggleDropdown}>
-        <Text style={styles.visibilityText}>
-          Post to: {visibilityOption === 'everyone'
-            ? 'Everyone'
-            : friendCircles.find(circle => circle.id === visibilityOption)?.name || 'Select'}
-        </Text>
+      {/* Post to dropdown */}
+      <TouchableOpacity style={styles.dropdownButton} onPress={toggleDropdown}>
+        <Text style={styles.dropdownButtonText}>Post to</Text>
         <Image
-          source={require('../../assets/down-arrow.png')} // Rotate this 45 degrees
-          style={[styles.dropdownArrow, { transform: [{ rotate: isDropdownOpen ? '45deg' : '0deg' }] }]}
+          source={require('../../assets/down-arrow.png')}
+          style={styles.dropdownIcon}
         />
       </TouchableOpacity>
 
-      {/* Dropdown options (shown only if the dropdown is open) */}
-      {isDropdownOpen && (
-        <View style={styles.visibilityOptions}>
+      {isDropdownVisible && (
+        <View style={styles.dropdownContainer}>
           <TouchableOpacity
-            onPress={() => handleVisibilitySelect('everyone')}
-            style={styles.visibilityOption}
+            key="everyone"
+            style={styles.checkboxContainer}
+            onPress={() => toggleSelectCircle('everyone')}
           >
-            <Text style={styles.visibilityOptionText}>Everyone</Text>
+            <View
+              style={[
+                styles.checkbox,
+                selectedCircles.includes('everyone') && styles.checkboxChecked,
+              ]}
+            >
+              {selectedCircles.includes('everyone') && <Text style={styles.checkboxCheckmark}>✔</Text>}
+            </View>
+            <Text style={styles.checkboxLabel}>Everyone</Text>
           </TouchableOpacity>
-          {friendCircles.map(circle => (
+
+          {friendCircles.map((circle) => (
             <TouchableOpacity
               key={circle.id}
-              onPress={() => handleVisibilitySelect(circle.id)}
-              style={styles.visibilityOption}
+              style={styles.checkboxContainer}
+              onPress={() => toggleSelectCircle(circle.id)}
             >
-              <Text style={styles.visibilityOptionText}>{circle.name}</Text>
+              <View
+                style={[
+                  styles.checkbox,
+                  selectedCircles.includes(circle.id) && styles.checkboxChecked,
+                ]}
+              >
+                {selectedCircles.includes(circle.id) && <Text style={styles.checkboxCheckmark}>✔</Text>}
+              </View>
+              <Text style={styles.checkboxLabel}>{circle.name}</Text>
             </TouchableOpacity>
           ))}
         </View>
       )}
 
-      {/* Preview the post in the same format as the feed */}
       {selectedImages.length > 0 && (
         <View style={styles.postPreviewContainer}>
           <View style={styles.postContainer}>
@@ -247,7 +330,7 @@ const MyFlixScreen = ({ navigateTo }) => {
       <TouchableOpacity onPress={handleCreatePost} style={styles.button}>
         <Text style={styles.buttonText}>Share</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 };
 
@@ -255,7 +338,7 @@ const { width } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     backgroundColor: '#000',
     alignItems: 'center',
     paddingTop: 50,
@@ -318,42 +401,56 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#fff',
   },
-  visibilityDropdownContainer: {
+  dropdownButton: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    backgroundColor: '#333',
+    padding: 10,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#fff',
-    padding: 12,
-    borderRadius: 5,
-    width: '80%',
-    marginBottom: 20,
+    marginBottom: 10,
+    alignItems: 'center',
   },
-  visibilityText: {
+  dropdownButtonText: {
     color: '#fff',
     fontSize: 16,
   },
-  dropdownArrow: {
-    width: 15,
-    height: 15,
+  dropdownIcon: {
+    width: 16,
+    height: 16,
+    marginLeft: 10,
     tintColor: '#fff',
   },
-  visibilityOptions: {
-    position: 'absolute',
-    top: 215,
+  dropdownContainer: {
     width: '80%',
-    backgroundColor: '#333',
-    zIndex: 10,
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: '#fff',
-  },
-  visibilityOption: {
+    backgroundColor: '#222',
     padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
+    borderRadius: 8,
+    marginBottom: 20,
   },
-  visibilityOptionText: {
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: '#fff',
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  checkboxChecked: {
+    backgroundColor: '#fff',
+  },
+  checkboxCheckmark: {
+    color: '#000',
+    fontWeight: 'bold',
+  },
+  checkboxLabel: {
     color: '#fff',
     fontSize: 16,
   },
@@ -368,7 +465,7 @@ const styles = StyleSheet.create({
     maxHeight: 300,
     marginBottom: 30,
     elevation: 2,
-    width: '100%', // Keep the preview container the same width as the buttons
+    width: '100%',
   },
   userInfo: {
     flexDirection: 'row',
@@ -382,11 +479,6 @@ const styles = StyleSheet.create({
     marginRight: 10,
     backgroundColor: '#ccc',
   },
-  username: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
   imageContainer: {
     position: 'relative',
     alignItems: 'center',
@@ -394,7 +486,7 @@ const styles = StyleSheet.create({
     maxHeight: 175,
   },
   postImage: {
-    width: width - 100, // Adjusted to make the preview smaller
+    width: width - 100,
     height: width * 0.48,
     borderRadius: 10,
   },

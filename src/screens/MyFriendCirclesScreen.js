@@ -7,72 +7,77 @@ import {
   StyleSheet,
   Modal,
   TextInput,
-  ImageBackground,
-  Image,
-  ScrollView,
   FlatList,
+  Image,
 } from 'react-native';
-import { launchImageLibrary } from 'react-native-image-picker';
 import { auth, firestore, storage } from '../../firebase/firebaseConfigs';
-import { addDoc, collection, serverTimestamp, getDoc, doc, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, getDoc, doc, getDocs, where, query } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { launchImageLibrary } from 'react-native-image-picker';
 import Menu from '../components/Menu';
 
 const MyFriendCirclesScreen = ({ navigateTo }) => {
   const [circleName, setCircleName] = useState('');
-  const [imageUrl, setImageUrl] = useState(null); 
-  const [showCreateModal, setShowCreateModal] = useState(false); 
+  const [imageUrl, setImageUrl] = useState(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showInviteSection, setShowInviteSection] = useState(false);
-  const [friendSearch, setFriendSearch] = useState(''); 
-  const [friendsList, setFriendsList] = useState([]); 
-  const [searchResults, setSearchResults] = useState([]); 
-  const [selectedFriends, setSelectedFriends] = useState([]); // To store selected friends
+  const [friendSearch, setFriendSearch] = useState('');
+  const [friendsList, setFriendsList] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
+  const [selectedFriends, setSelectedFriends] = useState([]);
+  const [invites, setInvites] = useState([]);
 
   useEffect(() => {
-    // Fetch user's friends list from the 'friends' field in the 'users' collection
-    const fetchFriends = async () => {
-      const userId = auth.currentUser.uid;
-
-      try {
-        const userDocRef = doc(firestore, 'users', userId);
-        const userSnapshot = await getDoc(userDocRef);
-
-        if (userSnapshot.exists()) {
-          const userData = userSnapshot.data();
-          
-          if (userData.friends && Array.isArray(userData.friends)) {
-            const fetchedFriends = [];
-
-            for (const friendId of userData.friends) {
-              const friendDocRef = doc(firestore, 'users', friendId);
-              const friendSnapshot = await getDoc(friendDocRef);
-
-              if (friendSnapshot.exists()) {
-                const friendData = friendSnapshot.data();
-                fetchedFriends.push({
-                  id: friendSnapshot.id,
-                  username: friendData.username,
-                  profileImageUri: friendData.profileImageUri || '', // Placeholder for profile image
-                });
-              }
-            }
-
-            setFriendsList(fetchedFriends);
-            setSearchResults(fetchedFriends);
-          } else {
-            setFriendsList([]);
-            setSearchResults([]);
-          }
-        } else {
-          console.log('User document does not exist');
-        }
-      } catch (error) {
-        console.error('Error fetching friends:', error);
-      }
-    };
-
     fetchFriends();
+    fetchInvites();
   }, []);
+
+  const fetchFriends = async () => {
+    const userId = auth.currentUser.uid;
+
+    try {
+      const userDocRef = doc(firestore, 'users', userId);
+      const userSnapshot = await getDoc(userDocRef);
+
+      if (userSnapshot.exists()) {
+        const userData = userSnapshot.data();
+        if (userData.friends && Array.isArray(userData.friends)) {
+          const fetchedFriends = [];
+
+          for (const friendId of userData.friends) {
+            const friendDocRef = doc(firestore, 'users', friendId);
+            const friendSnapshot = await getDoc(friendDocRef);
+
+            if (friendSnapshot.exists()) {
+              const friendData = friendSnapshot.data();
+              fetchedFriends.push({
+                id: friendSnapshot.id,
+                username: friendData.username,
+                profileImageUri: friendData.profileImageUri || '', // Placeholder for profile image
+              });
+            }
+          }
+          setFriendsList(fetchedFriends);
+          setSearchResults(fetchedFriends);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching friends:', error);
+    }
+  };
+
+  const fetchInvites = async () => {
+    const userId = auth.currentUser.uid;
+
+    try {
+      const q = query(collection(firestore, 'circleInvites'), where('inviteeId', '==', userId));
+      const querySnapshot = await getDocs(q);
+      const inviteData = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setInvites(inviteData);
+    } catch (error) {
+      console.error('Error fetching invites:', error);
+    }
+  };
 
   const selectImage = async () => {
     try {
@@ -87,7 +92,7 @@ const MyFriendCirclesScreen = ({ navigateTo }) => {
         console.error('ImagePicker Error: ', response.errorMessage);
       } else {
         const source = response.assets[0].uri;
-        setImageUrl(source); 
+        setImageUrl(source);
       }
     } catch (error) {
       console.error('Error launching image library: ', error);
@@ -109,76 +114,76 @@ const MyFriendCirclesScreen = ({ navigateTo }) => {
   };
 
   const createFriendCircle = async () => {
-    const userId = auth.currentUser.uid;
-
-    let downloadUrl = '';
-    if (imageUrl) {
-      downloadUrl = await uploadImageToFirebase(imageUrl);
-    }
-
-    const newCircleRef = await addDoc(collection(firestore, 'friendCircles'), {
-      name: circleName,
-      members: [userId, ...selectedFriends], // Add selected friends' IDs to the members field
-      imageUrl: downloadUrl,
-      createdAt: serverTimestamp(),
-    });
-
-    setShowCreateModal(false);
-    setCircleName('');
-    setImageUrl(null);
-    setSelectedFriends([]); // Reset selected friends
-  };
-
-  const handleFriendSearch = (text) => {
-    setFriendSearch(text);
-    if (text === '') {
-      setSearchResults(friendsList);
-    } else {
-      const filteredResults = friendsList.filter(friend =>
-        friend.username.toLowerCase().includes(text.toLowerCase())
-      );
-      setSearchResults(filteredResults);
-    }
-  };
-
-  // Handle friend selection
-  const handleSelectFriend = (friendId, username) => {
-    if (!selectedFriends.includes(friendId)) {
-      setSelectedFriends(prev => [...prev, friendId]); // Add selected friend ID
-    }
-  };
-
-  // Render selected friends
-  const renderSelectedFriends = () => (
-    <View style={styles.selectedFriendsContainer}>
-      {selectedFriends.length > 0 ? (
-        selectedFriends.map((friendId, index) => {
-          const friend = friendsList.find(f => f.id === friendId);
-          return (
-            <Text key={index} style={styles.selectedFriendText}>
-              {friend ? friend.username : 'Unknown'}
-            </Text>
-          );
+    try {
+      const userId = auth.currentUser.uid;
+      
+      // Check if a circle with the same name already exists
+      const circlesRef = collection(firestore, 'friendCircles');
+      const q = query(circlesRef, where('name', '==', circleName));
+      const querySnapshot = await getDocs(q);
+  
+      if (!querySnapshot.empty) {
+        alert('Circle name already exists. Please choose a different name.');
+        return;
+      }
+  
+      // Upload the image (if provided) and get the download URL
+      let downloadUrl = '';
+      if (imageUrl) {
+        downloadUrl = await uploadImageToFirebase(imageUrl);
+      }
+  
+      // Create the new friend circle
+      const newCircleRef = await addDoc(circlesRef, {
+        name: circleName,
+        members: [userId, ...selectedFriends], // Include the user and selected friends as members
+        imageUrl: downloadUrl, // Store the circle's image URL
+        createdAt: serverTimestamp(),
+      });
+  
+      // Optional: Add a dummy document to create the 'posts' subcollection
+      const postsRef = collection(firestore, `friendCircles/${newCircleRef.id}/posts`);
+      await addDoc(postsRef, {
+        userId: 'system', // Placeholder ID for a system post
+        message: 'This is the first post in the circle!',
+        timestamp: serverTimestamp(),
+      });
+  
+      // Send invites to selected friends
+      await Promise.all(
+        selectedFriends.map(async (friendId) => {
+          await addDoc(collection(firestore, 'circleInvites'), {
+            circleId: newCircleRef.id,
+            inviteeId: friendId,
+            circleName: circleName,
+            senderId: userId, // Current user (sender) ID
+            createdAt: serverTimestamp(),
+          });
         })
-      ) : (
-        <Text style={styles.noSelectedFriendsText}>No friends selected.</Text>
-      )}
-    </View>
-  );
+      );
+  
+      // Reset state after circle creation
+      setShowCreateModal(false);
+      setCircleName('');
+      setImageUrl(null);
+      setSelectedFriends([]);
+      alert('Friend circle created and invites sent!');
+    } catch (error) {
+      console.error('Error creating circle and sending invites:', error);
+      alert('Failed to create circle or send invites. Please try again.');
+    }
+  };
 
-  // Render friend item similar to the one on the friends page
-  const renderFriendItem = ({ item }) => (
-    <TouchableOpacity onPress={() => handleSelectFriend(item.id, item.username)} style={styles.friendItem}>
-      <Image
-        source={
-          item.profileImageUri
-            ? { uri: item.profileImageUri }
-            : require('../../assets/profile-placeholder.png') // Add a default placeholder image here
-        }
-        style={styles.profileImage}
-      />
-      <Text style={styles.friendUsername}>{item.username}</Text>
-    </TouchableOpacity>
+  const renderInviteItem = ({ item }) => (
+    <View style={styles.inviteItem}>
+      <Text style={styles.inviteText}>You've been invited to: {item.circleName}</Text>
+      <TouchableOpacity
+        style={styles.acceptButton}
+        onPress={() => console.log(`Accepted invite to ${item.circleName}`)} // Handle accepting invite here
+      >
+        <Text style={styles.acceptButtonText}>Accept</Text>
+      </TouchableOpacity>
+    </View>
   );
 
   return (
@@ -187,95 +192,83 @@ const MyFriendCirclesScreen = ({ navigateTo }) => {
       <View style={styles.contentContainer}>
         <Text style={styles.headerText}>My Friend Circles</Text>
 
+        {/* Create a circle button */}
         <TouchableOpacity style={styles.optionButton} onPress={() => setShowCreateModal(true)}>
           <Text style={styles.optionText}>Create a Circle</Text>
         </TouchableOpacity>
 
+        {/* My Circles button */}
         <TouchableOpacity style={styles.optionButton} onPress={() => navigateTo('MyCirclesScreen')}>
           <Text style={styles.optionText}>My Circles</Text>
         </TouchableOpacity>
 
+        {/* My Invites button */}
+        <TouchableOpacity style={styles.optionButton} onPress={() => setShowInviteSection(true)}>
+          <Text style={styles.optionText}>My Invites</Text>
+        </TouchableOpacity>
+
+        {/* Display invites in a modal */}
+        <Modal visible={showInviteSection} animationType="slide">
+          <SafeAreaView style={styles.inviteContainer}>
+            {/* Back button with an arrow image */}
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => setShowInviteSection(false)} // Close the invites modal
+            >
+              <Image source={require('../../assets/back-arrow.png')} style={styles.backArrowImage} />
+            </TouchableOpacity>
+
+            <Text style={styles.headerText}>Circle Invites</Text>
+            {invites.length === 0 ? (
+              <Text style={styles.noInvitesText}>No invites</Text>
+            ) : (
+              <FlatList
+                data={invites}
+                renderItem={renderInviteItem}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={styles.inviteList}
+              />
+            )}
+          </SafeAreaView>
+        </Modal>
+
         {/* Create Circle Modal */}
         <Modal visible={showCreateModal} animationType="slide" transparent={false}>
-  <View style={styles.modalOverlay}>
-    {/* Remove ScrollView if FlatList is handling the scrolling */}
-    <View style={styles.modalContent}> 
-      <ImageBackground
-        source={imageUrl ? { uri: imageUrl } : null}
-        style={styles.imageUrlBackground} // Enlarged image background
-        imageStyle={{ borderRadius: 10 }}
-      >
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>{circleName || 'New Circle'}</Text>
-        </View>
-      </ImageBackground>
+          <View style={styles.modalContent}>
+            {/* Dynamically updating the header with the circle name */}
+            <Text style={styles.modalTitle}>{circleName || 'New Circle'}</Text>
 
-      <TextInput
-        placeholder="Enter Circle Name"
-        value={circleName}
-        onChangeText={setCircleName}
-        style={styles.input}
-        placeholderTextColor="#000"
-      />
-
-      <TouchableOpacity style={styles.modalButton} onPress={selectImage}>
-        <Text style={styles.modalButtonText}>Choose Circle Image (Optional)</Text>
-      </TouchableOpacity>
-
-      {/* Render selected friends */}
-      {renderSelectedFriends()}
-
-      {/* Invite Friends Button */}
-      <TouchableOpacity 
-        style={styles.modalButton} 
-        onPress={() => setShowInviteSection(!showInviteSection)} // Toggle invite section
-      >
-        <Text style={styles.modalButtonText}>Invite Friends</Text>
-      </TouchableOpacity>
-
-      {/* Expanded Section to Invite Friends */}
-      {showInviteSection && (
-        <View style={styles.inviteSection}>
-          {/* Search Bar for Inviting Friends */}
-          <View style={styles.searchContainer}>
+            {/* Circle name input */}
             <TextInput
-              placeholder="Search for friends..."
-              value={friendSearch}
-              onChangeText={handleFriendSearch}
-              style={[styles.input, { flex: 1 }]}
-              placeholderTextColor="#000"
+              placeholder="Circle name"
+              value={circleName}
+              onChangeText={setCircleName}
+              style={styles.input}
+              placeholderTextColor="#aaa"
             />
-            <Image
-              source={require('../../assets/search.png')}
-              style={styles.searchIcon}
-            />
+
+            {/* Invite friends button */}
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => setShowInviteSection(!showInviteSection)}
+            >
+              <Text style={styles.modalButtonText}>Invite Friends</Text>
+            </TouchableOpacity>
+
+            {/* Create circle button */}
+            <TouchableOpacity style={styles.modalButton} onPress={createFriendCircle}>
+              <Text style={styles.modalButtonText}>Create Circle</Text>
+            </TouchableOpacity>
+
+            {/* Close modal button */}
+            <TouchableOpacity
+              style={styles.closeModalButton}
+              onPress={() => setShowCreateModal(false)}
+            >
+              <Text style={styles.closeModalText}>X</Text>
+            </TouchableOpacity>
           </View>
-
-          {/* Friends Search Results */}
-          <FlatList
-            data={searchResults}
-            keyExtractor={(item) => item.id}
-            renderItem={renderFriendItem}
-            ListEmptyComponent={() => (
-              <Text style={styles.noResultsText}>No friends found.</Text>
-            )}
-          />
-        </View>
-      )}
-
-      <TouchableOpacity style={styles.modalButton} onPress={createFriendCircle}>
-        <Text style={styles.modalButtonText}>Create Circle</Text>
-      </TouchableOpacity>
-    </View>
-
-    <TouchableOpacity
-      style={styles.closeModalOutside}
-      onPress={() => setShowCreateModal(false)}
-    >
-      <Text style={styles.closeModalText}>X</Text>
-    </TouchableOpacity>
-  </View>
-</Modal>
+        </Modal>
       </View>
     </SafeAreaView>
   );
@@ -292,14 +285,15 @@ const styles = StyleSheet.create({
   headerText: {
     fontSize: 24,
     color: '#fff',
+    marginTop: 20,
     textAlign: 'center',
-    marginBottom: 10, // Reduced margin to decrease space
+    marginBottom: 30,
   },
   optionButton: {
     backgroundColor: '#333',
-    padding: 10, // Reduced padding to decrease space
+    padding: 10,
     borderRadius: 8,
-    marginVertical: 5, // Reduced margin between buttons
+    marginVertical: 5,
     borderColor: '#fff',
     borderWidth: 1,
   },
@@ -308,47 +302,41 @@ const styles = StyleSheet.create({
     fontSize: 18,
     textAlign: 'center',
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  backButton: {
+    position: 'absolute',
+    top: 40,
+    left: 20,
+    zIndex: 10,
+  },
+  backArrowImage: {
+    width: 30,
+    height: 30,
+    tintColor: '#fff',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: '#111',
     padding: 20,
+    flex: 1,
     borderRadius: 8,
-    width: '100%',
-    paddingBottom: 40, // Ensure space at the bottom for scrolling
-  },
-  modalHeader: {
-    alignItems: 'center',
-    marginBottom: 10,
   },
   modalTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#000',
-  },
-  closeModalOutside: {
-    position: 'absolute',
-    top: 0,
-    right: 20,
-  },
-  closeModalText: {
-    fontSize: 28,
     color: '#fff',
-    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 20,
   },
   input: {
     padding: 10,
     borderRadius: 8,
-    backgroundColor: '#fff',
-    borderColor: '#ccc',
+    backgroundColor: '#333',
+    borderColor: '#555',
     borderWidth: 1,
-    marginBottom: 10,
-    color: '#000',
+    marginBottom: 20,
+    color: '#fff',
   },
   modalButton: {
-    backgroundColor: '#333',
+    backgroundColor: '#444',
     padding: 10,
     borderRadius: 5,
     alignItems: 'center',
@@ -360,68 +348,48 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
   },
-  imageUrlBackground: {
-    width: '100%',
-    height: '30%', // Adjusted height for background
-    justifyContent: 'center',
-    alignItems: 'center',
+  closeModalButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
   },
-  inviteSection: {
-    backgroundColor: '#222',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 10,
+  closeModalText: {
+    fontSize: 28,
+    color: '#fff',
+    fontWeight: 'bold',
   },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    marginBottom: 10,
+  inviteContainer: {
+    flex: 1,
+    backgroundColor: '#000',
   },
-  searchIcon: {
-    width: 20,
-    height: 20,
-    tintColor: '#000',
-    marginLeft: 10,
-  },
-  friendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  inviteItem: {
+    backgroundColor: '#333',
+    padding: 20,
+    borderRadius: 10,
     marginVertical: 10,
+    alignItems: 'center',
   },
-  profileImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 10,
+  inviteText: {
+    fontSize: 18,
+    color: '#fff',
+    marginBottom: 10,
   },
-  friendUsername: {
+  acceptButton: {
+    backgroundColor: '#00cc00',
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  acceptButtonText: {
     color: '#fff',
     fontSize: 16,
   },
-  noResultsText: {
+  noInvitesText: {
+    fontSize: 18,
+    color: '#fff',
     textAlign: 'center',
-    padding: 10,
-    color: '#555',
-  },
-  selectedFriendsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 10,
-  },
-  selectedFriendText: {
-    color: '#000',
-    backgroundColor: '#ddd',
-    padding: 5,
-    borderRadius: 5,
-    marginRight: 5,
-    marginBottom: 5,
-  },
-  noSelectedFriendsText: {
-    color: '#555',
+    fontWeight: 'bold',
+    textDecorationLine: 'underline',
   },
 });
 
