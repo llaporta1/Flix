@@ -47,6 +47,7 @@ Contacts: For syncing contacts from the user’s phone.
 Firebase Messaging: For sending notifications.
 
 Backend:
+
 Firebase Firestore: Real-time database for user data management and storing app-related information.
 Firebase Authentication: Used for secure user authentication and login.
 Firebase Cloud Storage: To efficiently store and manage user-uploaded images.
