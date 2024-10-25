@@ -1,79 +1,70 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
 
-# Getting Started
+<img width="509" alt="Screenshot 2024-10-25 at 12 38 21 AM" src="https://github.com/user-attachments/assets/8d2c4b38-b20b-4827-8d4c-0643e3bb3a6a">
 
->**Note**: Make sure you have completed the [React Native - Environment Setup](https://reactnative.dev/docs/environment-setup) instructions till "Creating a new application" step, before proceeding.
 
-## Step 1: Start the Metro Server
+FLIX is a dynamic social media app that allows users to share 24-hour "photo dumps" with their friends. This app is designed to help users stay connected with their circles in a fun, easy-to-use platform that emphasizes casual social sharing. Built for iOS with JavaScript and React Native, FLIX offers features for discovering friends, syncing contacts, and sharing moments in a visually captivating way.
 
-First, you will need to start **Metro**, the JavaScript _bundler_ that ships _with_ React Native.
 
-To start Metro, run the following command from the _root_ of your React Native project:
+**Features**
 
-```bash
-# using npm
-npm start
+24-Hour Photo Dumps: Users can upload a set of photos ("photo dump") that disappears after 24 hours.
 
-# OR using Yarn
-yarn start
-```
+Friend Discovery: Easily find friends online and connect with new contacts synced from your phone's address book.
 
-## Step 2: Start your Application
+Contact Syncing: Automatically sync contacts from your device using React Native's Contacts library.
 
-Let Metro Bundler run in its _own_ terminal. Open a _new_ terminal from the _root_ of your React Native project. Run the following command to start your _Android_ or _iOS_ app:
+Custom Friend Circles: Create unique friend circles and share your "photo dumps" with different groups.
 
-### For Android
+Real-Time Data Management: Backend powered by Firebase Firestore for fast and scalable user data management.
 
-```bash
-# using npm
-npm run android
+User Authentication: Secure authentication with Firebase Authentication, ensuring a smooth and safe sign-in process.
 
-# OR using Yarn
-yarn android
-```
+Image Handling: Efficiently manage image uploads and storage with Firebase Cloud Storage.
 
-### For iOS
+**Usage**
 
-```bash
-# using npm
-npm run ios
+Install FLIX from the App Store.
 
-# OR using Yarn
-yarn ios
-```
+Sign up with your email and password, or log in if you already have an account.
 
-If everything is set up _correctly_, you should see your new app running in your _Android Emulator_ or _iOS Simulator_ shortly provided you have set up your emulator/simulator correctly.
+Upload a set of photos as your daily "photo dump" to share with friends.
 
-This is one way to run your app — you can also run it directly from within Android Studio and Xcode respectively.
+Discover and sync your friends using your phone contacts, or search for friends online.
 
-## Step 3: Modifying your App
+Create unique friend circles and share specific "photo dumps" with different groups.
 
-Now that you have successfully run the app, let's modify it.
+Receive notifications when friends post or when your current photos expire.
 
-1. Open `App.tsx` in your text editor of choice and edit some lines.
-2. For **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Developer Menu** (<kbd>Ctrl</kbd> + <kbd>M</kbd> (on Window and Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (on macOS)) to see your changes!
+**Tech Stack**
 
-   For **iOS**: Hit <kbd>Cmd ⌘</kbd> + <kbd>R</kbd> in your iOS Simulator to reload the app and see your changes!
+Frontend:
 
-## Congratulations! :tada:
+React Native: Used for building the user interface and ensuring cross-platform mobile compatibility.
+JavaScript: Main language used for development.
+React Native Libraries: Utilized libraries such as:
+Image Picker: For selecting and uploading images.
+Contacts: For syncing contacts from the user’s phone.
+Firebase Messaging: For sending notifications.
 
-You've successfully run and modified your React Native App. :partying_face:
+Backend:
+Firebase Firestore: Real-time database for user data management and storing app-related information.
+Firebase Authentication: Used for secure user authentication and login.
+Firebase Cloud Storage: To efficiently store and manage user-uploaded images.
+Push Notifications: Integrated with Firebase Cloud Messaging to notify users when friends post or when their posts are expiring.
+Installation (for developers)
 
-### Now what?
+**Clone the repository:**
+bash
+Copy code
+git clone https://github.com/yourusername/FLIX.git
+Install dependencies:
+bash
+Copy code
+npm install
+Run the app on an iOS device or simulator:
+bash
+Copy code
+npx react-native run-ios
+License
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [Introduction to React Native](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you can't get this to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+This project is licensed under the MIT License - see the LICENSE file for details.
