@@ -79,6 +79,26 @@ const MyFriendCirclesScreen = ({ navigateTo }) => {
     }
   };
 
+  const searchFriends = (text) => {
+    setFriendSearch(text);
+    if (text === '') {
+      setSearchResults(friendsList); // Show all friends if search query is empty
+    } else {
+      const filteredFriends = friendsList.filter((friend) =>
+        friend.username.toLowerCase().includes(text.toLowerCase())
+      );
+      setSearchResults(filteredFriends);
+    }
+  };
+
+  const toggleSelectFriend = (friend) => {
+    if (selectedFriends.includes(friend.id)) {
+      setSelectedFriends(selectedFriends.filter((id) => id !== friend.id));
+    } else {
+      setSelectedFriends([...selectedFriends, friend.id]);
+    }
+  };
+
   const selectImage = async () => {
     try {
       const response = await launchImageLibrary({
@@ -116,23 +136,23 @@ const MyFriendCirclesScreen = ({ navigateTo }) => {
   const createFriendCircle = async () => {
     try {
       const userId = auth.currentUser.uid;
-      
+
       // Check if a circle with the same name already exists
       const circlesRef = collection(firestore, 'friendCircles');
       const q = query(circlesRef, where('name', '==', circleName));
       const querySnapshot = await getDocs(q);
-  
+
       if (!querySnapshot.empty) {
         alert('Circle name already exists. Please choose a different name.');
         return;
       }
-  
+
       // Upload the image (if provided) and get the download URL
       let downloadUrl = '';
       if (imageUrl) {
         downloadUrl = await uploadImageToFirebase(imageUrl);
       }
-  
+
       // Create the new friend circle
       const newCircleRef = await addDoc(circlesRef, {
         name: circleName,
@@ -140,15 +160,7 @@ const MyFriendCirclesScreen = ({ navigateTo }) => {
         imageUrl: downloadUrl, // Store the circle's image URL
         createdAt: serverTimestamp(),
       });
-  
-      // Optional: Add a dummy document to create the 'posts' subcollection
-      const postsRef = collection(firestore, `friendCircles/${newCircleRef.id}/posts`);
-      await addDoc(postsRef, {
-        userId: 'system', // Placeholder ID for a system post
-        message: 'This is the first post in the circle!',
-        timestamp: serverTimestamp(),
-      });
-  
+
       // Send invites to selected friends
       await Promise.all(
         selectedFriends.map(async (friendId) => {
@@ -161,7 +173,7 @@ const MyFriendCirclesScreen = ({ navigateTo }) => {
           });
         })
       );
-  
+
       // Reset state after circle creation
       setShowCreateModal(false);
       setCircleName('');
@@ -235,7 +247,6 @@ const MyFriendCirclesScreen = ({ navigateTo }) => {
         {/* Create Circle Modal */}
         <Modal visible={showCreateModal} animationType="slide" transparent={false}>
           <View style={styles.modalContent}>
-            {/* Dynamically updating the header with the circle name */}
             <Text style={styles.modalTitle}>{circleName || 'New Circle'}</Text>
 
             {/* Circle name input */}
@@ -247,13 +258,30 @@ const MyFriendCirclesScreen = ({ navigateTo }) => {
               placeholderTextColor="#aaa"
             />
 
-            {/* Invite friends button */}
-            <TouchableOpacity
-              style={styles.modalButton}
-              onPress={() => setShowInviteSection(!showInviteSection)}
-            >
-              <Text style={styles.modalButtonText}>Invite Friends</Text>
-            </TouchableOpacity>
+            {/* Invite friends search bar */}
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search for friends"
+              placeholderTextColor="#aaa"
+              value={friendSearch}
+              onChangeText={searchFriends}
+            />
+
+            <FlatList
+              data={searchResults}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  onPress={() => toggleSelectFriend(item)}
+                  style={[
+                    styles.friendItem,
+                    selectedFriends.includes(item.id) && styles.selectedFriend,
+                  ]}
+                >
+                  <Text style={styles.friendText}>{item.username}</Text>
+                </TouchableOpacity>
+              )}
+            />
 
             {/* Create circle button */}
             <TouchableOpacity style={styles.modalButton} onPress={createFriendCircle}>
@@ -334,6 +362,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 20,
     color: '#fff',
+  },
+  searchInput: {
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: '#333',
+    borderColor: '#555',
+    borderWidth: 1,
+    color: '#fff',
+    marginBottom: 20,
+  },
+  friendItem: {
+    padding: 10,
+    backgroundColor: '#222',
+    marginBottom: 5,
+    borderRadius: 5,
+  },
+  friendText: {
+    color: '#fff',
+  },
+  selectedFriend: {
+    backgroundColor: '#007AFF',
   },
   modalButton: {
     backgroundColor: '#444',

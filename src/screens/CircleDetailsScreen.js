@@ -69,7 +69,7 @@ const CircleDetailsScreen = ({ route, navigateTo }) => {
   const fetchCirclePosts = async (user, circleId) => {
     try {
       const postsRef = collection(firestore, 'posts'); // Fetch from the global posts collection
-      const postsQuery = query(postsRef, where('visibilityId', 'array-contains-any', [circleId, 'everyone'])); // Include posts visible to 'everyone' or the specific circle
+      const postsQuery = query(postsRef, where('visibilityId', 'array-contains-any', [circleId])); // Include posts visible to 'everyone' or the specific circle
   
       const unsubscribe = onSnapshot(postsQuery, async (querySnapshot) => {
         const postsData = querySnapshot.docs.map((doc) => ({
@@ -271,7 +271,7 @@ const CircleDetailsScreen = ({ route, navigateTo }) => {
         ) : (
           <View style={styles.noPostContainer}>
             <Text style={styles.noPostText}>
-              Share your flix to see your friends' posts!
+              Share your flix to {circleName} to see your friends' posts!
             </Text>
           </View>
         )}

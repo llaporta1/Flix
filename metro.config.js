@@ -1,5 +1,11 @@
 const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
 
+module.exports = {
+    resolver: {
+      useWatchman: false,
+    },
+  };
+  
 /**
  * Metro configuration
  * https://reactnative.dev/docs/metro

@@ -89,71 +89,33 @@ const HomeScreen = ({ navigateTo }) => {
 
   const fetchFriendsPosts = async (user) => {
     try {
-      const now = new Date();
-      const userDocRef = doc(firestore, 'users', user.uid);
-      const userDoc = await getDoc(userDocRef);
-
-      if (userDoc.exists()) {
-        const friendsList = userDoc.data().friends || [];
-        const allUserIds = [user.uid, ...friendsList];
-
-        const postsRef = collection(firestore, 'posts');
-        const postsQuery = query(
-          postsRef,
-          where('userId', 'in', allUserIds),
-          where('timestamp', '>=', new Date(now - 24 * 60 * 60 * 1000)),
-          where('visibilityId', 'array-contains', 'everyone')
-        );
-
-        const unsubscribe = onSnapshot(postsQuery, async (querySnapshot) => {
-          const postsData = querySnapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-
-          setPosts(postsData);
-
-          // Fetch profile images and reactions for each post
-          const userIds = new Set(postsData.map((post) => post.userId));
-          const profileImagePromises = Array.from(userIds).map(fetchUserProfileImage);
-
-          const reactionPromises = postsData.map(async (post) => {
-            const reactionsQuery = collection(firestore, `posts/${post.id}/reactions`);
-            const reactionsSnapshot = await getDocs(reactionsQuery);
-
-            const reactionCount = {};
-            reactionsSnapshot.forEach((doc) => {
-              const reaction = doc.data().reaction;
-              reactionCount[reaction] = (reactionCount[reaction] || 0) + 1;
-            });
-
-            return { postId: post.id, reactions: reactionCount };
-          });
-
-          const reactionData = await Promise.all(reactionPromises);
-
-          const reactionMap = reactionData.reduce((acc, curr) => {
-            acc[curr.postId] = curr.reactions;
-            return acc;
-          }, {});
-
-          setReactions(reactionMap);
-          await Promise.all(profileImagePromises);
-
-          setLoading(false);
-        });
-
-        return () => unsubscribe();
-      } else {
-        setError('User document does not exist');
+      const postsRef = collection(firestore, 'posts');
+      const postsQuery = query(postsRef, where('visibilityId', 'array-contains-any', ['everyone'])); // Modify this as needed
+  
+      const unsubscribe = onSnapshot(postsQuery, async (querySnapshot) => {
+        const postsData = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+  
+        setPosts(postsData);
+  
+        // Fetch profile images for users who have posted
+        const userIds = new Set(postsData.map((post) => post.userId));
+        const profileImagePromises = Array.from(userIds).map(fetchUserProfileImage);
+        await Promise.all(profileImagePromises);
+  
         setLoading(false);
-      }
+      });
+  
+      return () => unsubscribe();
     } catch (err) {
-      console.error('Error fetching friends posts: ', err);
-      setError('Failed to fetch friends posts');
+      console.error('Error fetching home posts: ', err);
+      setError('Failed to fetch posts');
       setLoading(false);
     }
   };
+  
 
   const fetchUserProfileImage = async (userId) => {
     try {

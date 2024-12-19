@@ -19,13 +19,13 @@ import { setDoc, doc, collection, query, where, getDocs } from 'firebase/firesto
 import { ThemeProvider } from './src/contexts/ThemeContext';
 import MyCirclesScreen from './src/screens/MyCirclesScreen';
 import CircleDetailsScreen from './src/screens/CircleDetailsScreen';
-import DataStorage from './src/screens/DataStorage';
 import AccountSettings from './src/screens/AccountSettings';
-import Legal from './src/screens/Legal';
-import NotificationSettings from './src/screens/NotificationSettings';
+import ReportBugs from './src/screens/ReportBugs';
 import PrivacySettings from './src/screens/PrivacySettings';
 import Support from './src/screens/Support';
 import MyCirclesFeed from './src/screens/MyCirclesFeed';
+import ContactUs from './src/screens/ContactUs';
+import AppPermissionsScreen from './src/screens/AppPermissionsScreen';
 
 const App = () => {
   const [currentScreen, setCurrentScreen] = useState('Main');
@@ -143,20 +143,20 @@ const App = () => {
         return <MyFlixScreen navigateTo={navigateTo} />;
       case 'MyFlixExisting':
         return <MyFlixExistingScreen navigateTo={navigateTo} route={{ params: screenParams }} />;
-      case 'NotificationSettings':
-        return <NotificationSettings navigateTo={navigateTo} />;
+      case 'ReportBugs':
+        return <ReportBugs navigateTo={navigateTo} />;
       case 'PrivacySettings':
         return <PrivacySettings navigateTo={navigateTo} />;
       case 'AccountSettings':
         return <AccountSettings navigateTo={navigateTo} />;
-      case 'DataStorage':
-        return <DataStorage navigateTo={navigateTo} />;
       case 'Support':
         return <Support navigateTo={navigateTo} />;
-      case 'Legal':
-        return <Legal navigateTo={navigateTo} />;
+      case 'ContactUs':
+        return <ContactUs navigateTo={navigateTo} />;
       case 'MyCirclesFeed':
         return <MyCirclesFeed navigateTo={navigateTo} />;
+      case 'AppPermissions':
+        return <AppPermissionsScreen navigateTo={navigateTo}/>;
       default:
         return <MainScreen setCurrentScreen={setCurrentScreen} />;
     }

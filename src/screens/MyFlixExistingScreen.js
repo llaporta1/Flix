@@ -11,11 +11,9 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { firestore, auth } from '../../firebase/firebaseConfigs';
-import { doc, deleteDoc, collection, getDoc, getDocs } from 'firebase/firestore';
+import { doc, deleteDoc, getDoc } from 'firebase/firestore';
 
 const MyFlixExistingScreen = ({ route, navigateTo }) => {
-  const [comments, setComments] = useState([]);
-  const [reactions, setReactions] = useState({});
   const [profileImages, setProfileImages] = useState({});
   const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -34,24 +32,6 @@ const MyFlixExistingScreen = ({ route, navigateTo }) => {
         Alert.alert('Error', 'User not authenticated');
         return;
       }
-
-      // Fetch comments for the post
-      const commentsQuery = collection(firestore, `posts/${post.id}/comments`);
-      const commentsSnapshot = await getDocs(commentsQuery);
-      const fetchedComments = commentsSnapshot.docs.map((doc) => doc.data());
-      setComments(fetchedComments);
-
-      // Fetch reactions from the 'reactions' subcollection of the post
-      const reactionsQuery = collection(firestore, `posts/${post.id}/reactions`);
-      const reactionsSnapshot = await getDocs(reactionsQuery);
-      const fetchedReactions = reactionsSnapshot.docs.map((doc) => doc.data());
-
-      // Process fetched reactions into a format for display
-      const reactionCount = {};
-      fetchedReactions.forEach((reaction) => {
-        reactionCount[reaction.reaction] = (reactionCount[reaction.reaction] || 0) + 1;
-      });
-      setReactions(reactionCount);
 
       // Fetch user profile image
       fetchUserProfileImage(userId);
